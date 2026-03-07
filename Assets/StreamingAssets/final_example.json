@@ -1,0 +1,424 @@
+{
+    "mapdata": {
+        "mapWidth": 10,
+        "rows": [
+            { "row": [2, 1, 3, 0, 1, 2, 0, 1, 2, 1] },
+            { "row": [1, 0, 2, 1, 0, 1, 2, 3, 1, 0] },
+            { "row": [0, 1, 0, 2, 3, 2, 1, 0, 1, 2] },
+            { "row": [1, 2, 3, 1, 0, 1, 0, 2, 1, 0] },
+            { "row": [2, 0, 1, 0, 2, 3, 1, 0, 1, 2] },
+            { "row": [1, 2, 0, 1, 0, 1, 2, 3, 0, 1] },
+            { "row": [0, 1, 2, 3, 1, 0, 1, 0, 2, 1] },
+            { "row": [3, 0, 1, 0, 2, 1, 0, 1, 3, 0] },
+            { "row": [1, 2, 0, 1, 0, 2, 3, 1, 0, 1] },
+            { "row": [2, 1, 3, 0, 1, 1, 1, 2, 1, 0] }
+        ]
+    },
+    "playerData": {
+        "player1": "1111",
+        "player2": "2222"
+    },
+    "soldiersData": [
+        {
+            "ID": 0,
+            "soldierType": "Warrior",
+            "camp": "Red",
+            "position": {
+                "x": 0,
+                "y": 2,
+                "z": 0
+            },
+            "stats": {
+                "health": 100,
+                "strength": 30,
+                "intelligence": 20
+            }
+        },
+        {
+            "ID": 1,
+            "soldierType": "Mage",
+            "camp": "Blue",
+            "position": {
+                "x": 4,
+                "y": 2,
+                "z": 4
+            },
+            "stats": {
+                "health": 80,
+                "strength": 10,
+                "intelligence": 100
+            }
+        },
+        {
+            "ID": 2,
+            "soldierType": "Mage",
+            "camp": "Blue",
+            "position": {
+                "x": 9,
+                "y": 1,
+                "z": 4
+            },
+            "stats": {
+                "health": 80,
+                "strength": 10,
+                "intelligence": 100
+            }
+        },
+        {
+            "ID": 3,
+            "soldierType": "Archer",
+            "camp": "Red",
+            "position": {
+                "x": 4,
+                "y": 0,
+                "z": 7
+            },
+            "stats": {
+                "health": 80,
+                "strength": 10,
+                "intelligence": 100
+            }
+        }
+    ],
+    "gameRounds": [
+        {
+            "roundNumber": 1,
+            "actions": [
+                {
+                    "actionType": "movement",
+                    "soldierId": 0,
+                    "path": [
+                        {
+                            "x": 0,
+                            "y": 2,
+                            "z": 0
+                        },
+                        {
+                            "x": 0,
+                            "y": 1,
+                            "z": 1
+                        },
+                        {
+                            "x": 0,
+                            "y": 3,
+                            "z": 2
+                        }
+                    ],
+                    "remainingMovement": 1
+                },
+                {
+                    "actionType": "attack",
+                    "soldierId": 1,
+                    "damageDealt": [
+                        {
+                            "targetId": 2,
+                            "damage": 30
+                        }
+                    ]
+                },
+                {
+                    "actionType": "ability",
+                    "soldierId": 2,
+                    "ability": "火球术",
+                    "targetPosition": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 2
+                    },
+                    "damageDealt": [
+                        {
+                            "targetId": 0,
+                            "damage": 30
+                        }
+                    ],
+                    "intelligenceCost": 30
+                }
+            ],
+            "stats": [
+                {
+                    "soldierId": 0,
+                    "survived": "true",
+                    "position": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 2
+                    },
+                    "Stats": {
+                        "health": 70,
+                        "strength": 30,
+                        "intelligence": 20
+                    }
+                },
+                {
+                    "soldierId": 1,
+                    "survived": "true",
+                    "position": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 4
+                    },
+                    "Stats": {
+                        "health": 80,
+                        "strength": 10,
+                        "intelligence": 100
+                    }
+                },
+                {
+                    "soldierId": 2,
+                    "survived": "true",
+                    "position": {
+                        "x": 9,
+                        "y": 1,
+                        "z": 4
+                    },
+                    "Stats": {
+                        "health": 50,
+                        "strength": 10,
+                        "intelligence": 70
+                    }
+                },
+                {
+                    "soldierId": 3,
+                    "survived": "true",
+                    "position": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 7
+                    },
+                    "Stats": {
+                        "health": 80,
+                        "strength": 10,
+                        "intelligence": 100
+                    }
+                }
+            ],
+            "score": {
+                "redScore": 0,
+                "blueScore": 0
+            },
+            "end": "false"
+        },
+        {
+            "roundNumber": 2,
+            "actions": [
+                {
+                    "actionType": "movement",
+                    "soldierId": 1,
+                    "path": [
+                        {
+                            "x": 4,
+                            "y": 2,
+                            "z": 4
+                        },
+                        {
+                            "x": 4,
+                            "y": 3,
+                            "z": 5
+                        },
+                        {
+                            "x": 4,
+                            "y": 1,
+                            "z": 6
+                        }
+                    ],
+                    "remainingMovement": 1
+                },
+                {
+                    "actionType": "attack",
+                    "soldierId": 1,
+                    "damageDealt": [
+                        {
+                            "targetId": 2,
+                            "damage": 30
+                        }
+                    ]
+                },
+                {
+                    "actionType": "ability",
+                    "soldierId": 2,
+                    "ability": "火球术",
+                    "targetPosition": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 2
+                    },
+                    "damageDealt": [
+                        {
+                            "targetId": 0,
+                            "damage": 30
+                        }
+                    ],
+                    "intelligenceCost": 30
+                }
+            ],
+            "stats": [
+                {
+                    "soldierId": 0,
+                    "survived": "true",
+                    "position": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 2
+                    },
+                    "Stats": {
+                        "health": 40,
+                        "strength": 30,
+                        "intelligence": 20
+                    }
+                },
+                {
+                    "soldierId": 1,
+                    "survived": "true",
+                    "position": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 6
+                    },
+                    "Stats": {
+                        "health": 80,
+                        "strength": 10,
+                        "intelligence": 100
+                    }
+                },
+                {
+                    "soldierId": 2,
+                    "survived": "true",
+                    "position": {
+                        "x": 9,
+                        "y": 1,
+                        "z": 4
+                    },
+                    "Stats": {
+                        "health": 20,
+                        "strength": 10,
+                        "intelligence": 70
+                    }
+                },
+                {
+                    "soldierId": 3,
+                    "survived": "true",
+                    "position": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 7
+                    },
+                    "Stats": {
+                        "health": 80,
+                        "strength": 10,
+                        "intelligence": 100
+                    }
+                }
+            ],
+            "score": {
+                "redScore": 0,
+                "blueScore": 0
+            },
+            "end": "false"
+        },
+        {
+            "roundNumber": 3,
+            "actions": [
+                {
+                    "actionType": "movement",
+                    "soldierId": 2,
+                    "path": [
+                        {
+                            "x": 9,
+                            "y": 1,
+                            "z": 4
+                        },
+                        {
+                            "x": 9,
+                            "y": 1,
+                            "z": 5
+                        },
+                        {
+                            "x": 8,
+                            "y": 2,
+                            "z": 5
+                        }
+                    ],
+                    "remainingMovement": 1
+                },
+                {
+                    "actionType": "attack",
+                    "soldierId": 1,
+                    "damageDealt": [
+                        {
+                            "targetId": 2,
+                            "damage": 30
+                        }
+                    ]
+                },
+                {
+                    "actionType": "death",
+                    "soldierId": 2,
+                    "cause": "Being Attacked"
+                }
+            ],
+            "stats": [
+                {
+                    "soldierId": 0,
+                    "survived": "true",
+                    "position": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 2
+                    },
+                    "Stats": {
+                        "health": 40,
+                        "strength": 30,
+                        "intelligence": 20
+                    }
+                },
+                {
+                    "soldierId": 1,
+                    "survived": "true",
+                    "position": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 6
+                    },
+                    "Stats": {
+                        "health": 80,
+                        "strength": 10,
+                        "intelligence": 100
+                    }
+                },
+                {
+                    "soldierId": 2,
+                    "survived": "false",
+                    "position": {
+                        "x": 8,
+                        "y": 2,
+                        "z": 5
+                    },
+                    "Stats": {
+                        "health": 0,
+                        "strength": 10,
+                        "intelligence": 70
+                    }
+                },
+                {
+                    "soldierId": 3,
+                    "survived": "true",
+                    "position": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 7
+                    },
+                    "Stats": {
+                        "health": 80,
+                        "strength": 10,
+                        "intelligence": 100
+                    }
+                }
+            ],
+            "score": {
+                "redScore": 1,
+                "blueScore": 0
+            },
+            "end": "Red"
+        }
+    ]
+}
