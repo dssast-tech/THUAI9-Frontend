@@ -9,6 +9,7 @@ public class GameRounds : MonoBehaviour
     public PlayerData playerDataScript;
     public SoldiersData soldiersDataScript;
     public Actions actionsScript;
+    public ReplayActionLog replayActionLog;
 
     private RootData gameData;
     private int currentRoundIndex = 0;
@@ -55,12 +56,12 @@ public class GameRounds : MonoBehaviour
         {
             LoadAndPlay(Path.Combine(Application.streamingAssetsPath, "final_example.json"));
         }
-        
+
         if (GUI.Button(new Rect(170, Screen.height - 50, 150, 40), "Load log.json"))
         {
             LoadAndPlay(Path.Combine(Application.streamingAssetsPath, "log.json"));
         }
-        
+
         if (GUI.Button(new Rect(330, Screen.height - 50, 150, 40), isPlaying ? "Pause" : "Play/Next"))
         {
             if (gameData != null && !isPlaying && currentRoundIndex < gameData.gameRounds.Length)
@@ -68,11 +69,11 @@ public class GameRounds : MonoBehaviour
                 StartCoroutine(PlayNextRound());
             }
         }
-        
+
         GUIStyle style = new GUIStyle(GUI.skin.label);
         style.fontSize = 20;
         style.normal.textColor = Color.white;
-        
+
         if (gameData != null)
         {
             string roundText = currentRoundIndex < gameData.gameRounds.Length ? (currentRoundIndex + 1).ToString() : "End";
@@ -97,34 +98,42 @@ public class GameRounds : MonoBehaviour
 
         playerDataScript.Initialize(gameData.playerData);
         soldiersDataScript.InitializeSoldiers(gameData.soldiersData);
-        
+
         actionsScript.Setup(soldiersDataScript);
+        if (replayActionLog != null)
+        {
+            replayActionLog.Setup(soldiersDataScript);
+        }
     }
 
     private IEnumerator PlayNextRound()
     {
         isPlaying = true;
-        
+
         if (currentRoundIndex < gameData.gameRounds.Length)
         {
             var round = gameData.gameRounds[currentRoundIndex];
-            
+            if (replayActionLog != null)
+            {
+                replayActionLog.ShowRoundActions(round.roundNumber > 0 ? round.roundNumber : currentRoundIndex + 1, round.actions);
+            }
+
             // Play Actions First
             yield return StartCoroutine(actionsScript.PlayActions(round.actions));
-            
+
             // Update Stats
             soldiersDataScript.UpdateSoldierStats(round.stats);
-            
+
             // Update Player Data
             playerDataScript.UpdateRoundInfo(round.score, round.end);
-            
+
             currentRoundIndex++;
-            
+
             yield return new WaitForSeconds(1.0f); // Round end pause
         }
-        
+
         isPlaying = false;
-        
+
         // Auto play loop ?
         if (currentRoundIndex < gameData.gameRounds.Length)
         {

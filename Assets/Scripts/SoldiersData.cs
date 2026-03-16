@@ -7,6 +7,7 @@ public class SoldiersData : MonoBehaviour
     
     // Store soldier info
     private Dictionary<int, string> soldierTypes = new Dictionary<int, string>();
+    private Dictionary<int, string> soldierCamps = new Dictionary<int, string>();
     private Dictionary<int, int> soldierHP = new Dictionary<int, int>();
     
     private Transform soldiersParent;
@@ -46,6 +47,7 @@ public class SoldiersData : MonoBehaviour
 
             soldiersMap[s.ID] = model;
             soldierTypes[s.ID] = s.soldierType;
+            soldierCamps[s.ID] = s.camp;
             soldierHP[s.ID] = s.stats != null ? s.stats.health : 0;
         }
     }
@@ -92,6 +94,7 @@ public class SoldiersData : MonoBehaviour
         }
         soldiersMap.Clear();
         soldierTypes.Clear();
+        soldierCamps.Clear();
         soldierHP.Clear();
     }
 
@@ -102,6 +105,13 @@ public class SoldiersData : MonoBehaviour
             return go;
         }
         return null;
+    }
+
+    public string GetSoldierDisplayName(int id)
+    {
+        string camp = soldierCamps.ContainsKey(id) ? soldierCamps[id] : "Unknown";
+        string type = soldierTypes.ContainsKey(id) ? soldierTypes[id] : "Soldier";
+        return $"{camp} {type} #{id}";
     }
 
     private void OnGUI()
