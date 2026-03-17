@@ -44,6 +44,27 @@ public class Actions : MonoBehaviour
         ClearEffects();
     }
 
+    public List<string> BuildRoundActionDescriptions(ActionField[] actions)
+    {
+        List<string> lines = new List<string>();
+        if (actions == null || actions.Length == 0)
+        {
+            return lines;
+        }
+
+        foreach (var act in actions)
+        {
+            if (act == null)
+            {
+                continue;
+            }
+
+            lines.AddRange(BuildActionDescriptionLines(act));
+        }
+
+        return lines;
+    }
+
     private IEnumerator HandleMovement(ActionField act)
     {
         if (act.path == null || act.path.Length == 0) yield break;
@@ -96,31 +117,100 @@ public class Actions : MonoBehaviour
         {
             foreach (var dmg in act.damageDealt)
             {
-                ShowFloatingText($"Target {dmg.targetId} takes {dmg.damage} raw DMG", Color.red, new Vector3(0, 1, 0)); // We don't have perfect positions here, it's just placeholder info
-                Debug.Log($"Soldier {act.soldierId} attacked {dmg.targetId} for {dmg.damage} damage");
             }
         }
         
         yield return new WaitForSeconds(0.5f);
     }
 
-    private IEnumerator HandleAbility(ActionField act)
+    private List<string> BuildActionDescriptionLines(ActionField act)
     {
-        // Show ability name
-        if (!string.IsNullOrEmpty(act.ability))
+        List<string> lines = new List<string>();
+        string actorName = GetSoldierDisplayName(act.soldierId);
+        string type = string.IsNullOrEmpty(act.actionType) ? "unknown" : act.actionType.ToLower();
+
+        if (type == "movement")
         {
-            Debug.Log($"Soldier {act.soldierId} used ability {act.ability}");
-            ShowFloatingText($"Ability: {act.ability}", Color.magenta, new Vector3(0, 2, 0));
+            if (act.path == null || act.path.Length == 0)
+            {
+                lines.Add($"{actorName} 尝试移动，但没有路径信息");
+                return lines;
+            }
+
+            PositionField start = act.path[0];
+            PositionField end = act.path[act.path.Length - 1];
+            lines.Add($"{actorName} 从 {FormatPosition(start)} 移动到 {FormatPosition(end)}，共 {act.path.Length - 1} 步");
+            return lines;
         }
 
-        if (act.damageDealt != null)
+        if (type == "attack")
         {
+            if (act.damageDealt == null || act.damageDealt.Length == 0)
+            {
+                lines.Add($"{actorName} 发动了攻击");
+                return lines;
+            }
+
             foreach (var dmg in act.damageDealt)
             {
-                ShowFloatingText($"Target {dmg.targetId} takes {dmg.damage} magic DMG", Color.magenta, new Vector3(0, 1.5f, 0));
+                if (dmg == null)
+                {
+                    continue;
+                }
+
+                string targetName = GetSoldierDisplayName(dmg.targetId);
+                lines.Add($"{actorName} 攻击 {targetName}，造成 {dmg.damage} 点伤害");
             }
+
+            if (lines.Count == 0)
+            {
+                lines.Add($"{actorName} 发动了攻击");
+            }
+
+            return lines;
         }
 
+        if (type == "ability")
+        {
+            string abilityName = string.IsNullOrEmpty(act.ability) ? "技能" : act.ability;
+            string targetInfo = act.targetPosition == null ? string.Empty : $"，目标点 {FormatPosition(act.targetPosition)}";
+            lines.Add($"{actorName} 使用了 {abilityName}{targetInfo}");
+
+            if (act.damageDealt != null)
+            {
+                foreach (var dmg in act.damageDealt)
+                {
+                    if (dmg == null)
+                    {
+                        continue;
+                    }
+
+                    string targetName = GetSoldierDisplayName(dmg.targetId);
+                    lines.Add($"{abilityName} 对 {targetName} 造成 {dmg.damage} 点伤害");
+                }
+            }
+
+            return lines;
+        }
+
+        lines.Add($"{actorName} 执行了未知行动：{act.actionType}");
+        return lines;
+    }
+
+    private string GetSoldierDisplayName(int soldierId)
+    {
+        return soldiersDataRef != null
+            ? soldiersDataRef.GetSoldierDisplayName(soldierId)
+            : $"角色 #{soldierId}";
+    }
+
+    private string FormatPosition(PositionField position)
+    {
+        return $"({position.x}, {position.y}, {position.z})";
+    }
+
+    private IEnumerator HandleAbility(ActionField act)
+    {
         if (act.targetPosition != null)
         {
             // Draw a temporary impact sphere
@@ -134,18 +224,6 @@ public class Actions : MonoBehaviour
         yield return new WaitForSeconds(0.8f);
     }
 
-    private void ShowFloatingText(string text, Color color, Vector3 offset)
-    {
-        // Simplistic GUI floating text is handled in OnGUI, but we can just use Debug.Log for placeholder 
-        // We'll queue it as a temporary effect.
-        GameObject textObj = new GameObject("FloatingTextData");
-        FloatingText ft = textObj.AddComponent<FloatingText>();
-        ft.text = text;
-        ft.color = color;
-        ft.offset = offset;
-        visualEffects.Add(textObj);
-    }
-
     private void ClearEffects()
     {
         foreach (var ef in visualEffects)
@@ -153,30 +231,5 @@ public class Actions : MonoBehaviour
             if (ef != null) Destroy(ef);
         }
         visualEffects.Clear();
-    }
-}
-
-public class FloatingText : MonoBehaviour
-{
-    public string text;
-    public Color color;
-    public Vector3 offset;
-    private float birthTime;
-
-    void Start()
-    {
-        birthTime = Time.time;
-    }
-
-    void OnGUI()
-    {
-        if (Time.time - birthTime > 2.0f) return; // Expire after 2s
-        
-        GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 20;
-        style.normal.textColor = color;
-        
-        // Draw in center of screen
-        GUI.Label(new Rect(Screen.width/2 - 100, Screen.height/2 + (offset.y * 30), 400, 40), text, style);
     }
 }

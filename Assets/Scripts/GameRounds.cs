@@ -50,37 +50,6 @@ public class GameRounds : MonoBehaviour
         return JsonUtility.FromJson<RootData>(jsonContent);
     }
 
-    void OnGUI()
-    {
-        if (GUI.Button(new Rect(10, Screen.height - 50, 150, 40), "Load final_example.json"))
-        {
-            LoadAndPlay(Path.Combine(Application.streamingAssetsPath, "final_example.json"));
-        }
-
-        if (GUI.Button(new Rect(170, Screen.height - 50, 150, 40), "Load log.json"))
-        {
-            LoadAndPlay(Path.Combine(Application.streamingAssetsPath, "log.json"));
-        }
-
-        if (GUI.Button(new Rect(330, Screen.height - 50, 150, 40), isPlaying ? "Pause" : "Play/Next"))
-        {
-            if (gameData != null && !isPlaying && currentRoundIndex < gameData.gameRounds.Length)
-            {
-                StartCoroutine(PlayNextRound());
-            }
-        }
-
-        GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 20;
-        style.normal.textColor = Color.white;
-
-        if (gameData != null)
-        {
-            string roundText = currentRoundIndex < gameData.gameRounds.Length ? (currentRoundIndex + 1).ToString() : "End";
-            GUI.Label(new Rect(10, 50, 200, 30), $"Round: {roundText} / {gameData.gameRounds.Length}", style);
-        }
-    }
-
     private void InitializeGame()
     {
         StopAllCoroutines();
@@ -104,6 +73,15 @@ public class GameRounds : MonoBehaviour
         {
             replayActionLog.Setup(soldiersDataScript);
         }
+        else
+        {
+            Debug.LogError("GameRounds 未绑定 replayActionLog，请在 Inspector 手动指定 ReplayActionLog 组件。", this);
+        }
+
+        if (!isPlaying && gameData != null && gameData.gameRounds != null && gameData.gameRounds.Length > 0)
+        {
+            StartCoroutine(PlayNextRound());
+        }
     }
 
     private IEnumerator PlayNextRound()
@@ -115,7 +93,9 @@ public class GameRounds : MonoBehaviour
             var round = gameData.gameRounds[currentRoundIndex];
             if (replayActionLog != null)
             {
-                replayActionLog.ShowRoundActions(round.roundNumber > 0 ? round.roundNumber : currentRoundIndex + 1, round.actions);
+                int roundNumber = round.roundNumber > 0 ? round.roundNumber : currentRoundIndex + 1;
+                var actionDescriptions = actionsScript.BuildRoundActionDescriptions(round.actions);
+                replayActionLog.ShowRoundActions(roundNumber, actionDescriptions);
             }
 
             // Play Actions First

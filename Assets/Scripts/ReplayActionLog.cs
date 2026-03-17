@@ -2,32 +2,53 @@ using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ReplayActionLog : MonoBehaviour
 {
     [SerializeField] private TMP_Text logText;
     [SerializeField] private int maxRoundsToKeep = 8;
     [SerializeField] private bool clearOnPlayStart = true;
+    [Header("Display Optimization")]
+    [SerializeField] private bool optimizeLogView = true;
+    [SerializeField] private float logFontSize = 18f;
+    [SerializeField] private Vector2 logBoxSize = new Vector2(420f, 320f);
+    [SerializeField] private float scrollSensitivity = 25f;
+    [SerializeField] private Color boxBackgroundColor = new Color(0f, 0f, 0f, 0.35f);
+    [SerializeField] private Color boxBorderColor = new Color(1f, 1f, 1f, 0.85f);
+
+    private const string DefaultPlaceholderText = "回合行动日志（点击 Play/Next 后开始）";
 
     private readonly Queue<string> roundLogs = new Queue<string>();
-    private SoldiersData soldiersData;
+    private ScrollRect scrollRect;
+    private RectTransform logViewportRect;
 
     private void Awake()
     {
         if (logText == null)
         {
-            logText = GetComponent<TMP_Text>();
+            Debug.LogError("ReplayActionLog 未绑定 logText，请在 Inspector 手动指定 TMP 组件。", this);
+            return;
         }
 
-        if (logText != null && string.IsNullOrEmpty(logText.text))
+        if (string.IsNullOrEmpty(logText.text))
         {
-            logText.text = "回合行动日志（点击 Play/Next 后开始）";
+            logText.text = DefaultPlaceholderText;
         }
+
+        if (optimizeLogView)
+        {
+            ConfigureLogView();
+        }
+    }
+
+    public bool CanDisplayLogs()
+    {
+        return logText != null;
     }
 
     public void Setup(SoldiersData soldiersDataScript)
     {
-        soldiersData = soldiersDataScript;
         if (clearOnPlayStart)
         {
             ClearLog();
@@ -40,26 +61,26 @@ public class ReplayActionLog : MonoBehaviour
         RefreshText();
     }
 
-    public void ShowRoundActions(int roundNumber, ActionField[] actions)
+    public void ShowRoundActions(int roundNumber, IReadOnlyList<string> actionDescriptions)
     {
         StringBuilder builder = new StringBuilder();
         builder.AppendLine($"第 {roundNumber} 回合");
 
-        if (actions == null || actions.Length == 0)
+        if (actionDescriptions == null || actionDescriptions.Count == 0)
         {
             builder.Append("- 本回合无行动");
         }
         else
         {
             int lineIndex = 1;
-            foreach (var action in actions)
+            foreach (var line in actionDescriptions)
             {
-                if (action == null)
+                if (string.IsNullOrWhiteSpace(line))
                 {
                     continue;
                 }
 
-                builder.AppendLine($"{lineIndex}. {FormatAction(action)}");
+                builder.AppendLine($"{lineIndex}. {line.Trim()}");
                 lineIndex++;
             }
 
@@ -85,85 +106,109 @@ public class ReplayActionLog : MonoBehaviour
             return;
         }
 
-        logText.text = string.Join("\n\n", roundLogs.ToArray());
-    }
+        logText.text = roundLogs.Count == 0
+            ? DefaultPlaceholderText
+            : string.Join("\n\n", roundLogs.ToArray());
 
-    private string FormatAction(ActionField action)
-    {
-        string soldierName = soldiersData != null ? soldiersData.GetSoldierDisplayName(action.soldierId) : $"角色 #{action.soldierId}";
-        string actionType = string.IsNullOrEmpty(action.actionType) ? "unknown" : action.actionType.ToLower();
-
-        switch (actionType)
+        if (scrollRect != null)
         {
-            case "movement":
-                return FormatMovement(soldierName, action);
-            case "attack":
-                return FormatAttack(soldierName, action);
-            case "ability":
-                return FormatAbility(soldierName, action);
-            default:
-                return $"{soldierName} 执行了未知行动：{action.actionType}";
+            Canvas.ForceUpdateCanvases();
+            scrollRect.verticalNormalizedPosition = 0f;
         }
     }
 
-    private string FormatMovement(string soldierName, ActionField action)
+    private void ConfigureLogView()
     {
-        if (action.path == null || action.path.Length == 0)
+        TextMeshProUGUI tmpUGUI = logText as TextMeshProUGUI;
+        if (tmpUGUI == null)
         {
-            return $"{soldierName} 尝试移动，但没有路径信息";
+            Debug.LogWarning("ReplayActionLog 的 logText 不是 TextMeshProUGUI，无法启用滚轮与边界框优化。", this);
+            return;
         }
 
-        PositionField start = action.path[0];
-        PositionField end = action.path[action.path.Length - 1];
-        return $"{soldierName} 从 {FormatPosition(start)} 移动到 {FormatPosition(end)}，共 {action.path.Length - 1} 步";
-    }
+        tmpUGUI.fontSize = Mathf.Max(8f, logFontSize);
+        tmpUGUI.enableWordWrapping = true;
+        tmpUGUI.overflowMode = TextOverflowModes.Overflow;
+        tmpUGUI.margin = new Vector4(8f, 8f, 8f, 8f);
 
-    private string FormatAttack(string soldierName, ActionField action)
-    {
-        string damageInfo = FormatDamage(action.damageDealt);
-        return string.IsNullOrEmpty(damageInfo)
-            ? $"{soldierName} 发动了攻击"
-            : $"{soldierName} 发动攻击，{damageInfo}";
-    }
-
-    private string FormatAbility(string soldierName, ActionField action)
-    {
-        string abilityName = string.IsNullOrEmpty(action.ability) ? "技能" : action.ability;
-        string targetInfo = action.targetPosition != null ? $"，目标点 {FormatPosition(action.targetPosition)}" : string.Empty;
-        string damageInfo = FormatDamage(action.damageDealt);
-
-        if (string.IsNullOrEmpty(damageInfo))
+        RectTransform contentRect = tmpUGUI.rectTransform;
+        RectTransform originalParent = contentRect.parent as RectTransform;
+        if (originalParent == null)
         {
-            return $"{soldierName} 使用了 {abilityName}{targetInfo}";
+            Debug.LogWarning("ReplayActionLog 未找到可用父级，无法配置滚动视图。", this);
+            return;
         }
 
-        return $"{soldierName} 使用了 {abilityName}{targetInfo}，{damageInfo}";
-    }
-
-    private string FormatDamage(TargetDamageField[] damages)
-    {
-        if (damages == null || damages.Length == 0)
+        RectTransform viewportRect = originalParent.GetComponentInChildren<RectTransform>(true);
+        if (contentRect.parent != null && contentRect.parent.name == "ReplayLogViewport")
         {
-            return string.Empty;
+            viewportRect = contentRect.parent as RectTransform;
+        }
+        else
+        {
+            GameObject viewportObject = new GameObject("ReplayLogViewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(Outline), typeof(ScrollRect));
+            viewportRect = viewportObject.GetComponent<RectTransform>();
+            viewportRect.SetParent(originalParent, false);
+            viewportRect.SetSiblingIndex(contentRect.GetSiblingIndex());
+
+            viewportRect.anchorMin = contentRect.anchorMin;
+            viewportRect.anchorMax = contentRect.anchorMax;
+            viewportRect.pivot = contentRect.pivot;
+            viewportRect.anchoredPosition = contentRect.anchoredPosition;
+            viewportRect.localScale = Vector3.one;
+
+            contentRect.SetParent(viewportRect, false);
         }
 
-        List<string> entries = new List<string>();
-        foreach (var damage in damages)
-        {
-            if (damage == null)
-            {
-                continue;
-            }
+        logViewportRect = viewportRect;
+        logViewportRect.sizeDelta = logBoxSize;
 
-            string targetName = soldiersData != null ? soldiersData.GetSoldierDisplayName(damage.targetId) : $"角色 #{damage.targetId}";
-            entries.Add($"对 {targetName} 造成 {damage.damage} 点伤害");
+        Image bgImage = logViewportRect.GetComponent<Image>();
+        if (bgImage == null)
+        {
+            bgImage = logViewportRect.gameObject.AddComponent<Image>();
+        }
+        bgImage.color = boxBackgroundColor;
+
+        Outline outline = logViewportRect.GetComponent<Outline>();
+        if (outline == null)
+        {
+            outline = logViewportRect.gameObject.AddComponent<Outline>();
+        }
+        outline.effectColor = boxBorderColor;
+        outline.effectDistance = new Vector2(1f, -1f);
+
+        if (logViewportRect.GetComponent<RectMask2D>() == null)
+        {
+            logViewportRect.gameObject.AddComponent<RectMask2D>();
         }
 
-        return string.Join("；", entries);
-    }
+        ContentSizeFitter fitter = contentRect.GetComponent<ContentSizeFitter>();
+        if (fitter == null)
+        {
+            fitter = contentRect.gameObject.AddComponent<ContentSizeFitter>();
+        }
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-    private string FormatPosition(PositionField position)
-    {
-        return $"({position.x}, {position.y}, {position.z})";
+        contentRect.anchorMin = new Vector2(0f, 1f);
+        contentRect.anchorMax = new Vector2(1f, 1f);
+        contentRect.pivot = new Vector2(0.5f, 1f);
+        contentRect.anchoredPosition = Vector2.zero;
+        contentRect.sizeDelta = new Vector2(0f, contentRect.sizeDelta.y);
+
+        scrollRect = logViewportRect.GetComponent<ScrollRect>();
+        if (scrollRect == null)
+        {
+            scrollRect = logViewportRect.gameObject.AddComponent<ScrollRect>();
+        }
+
+        scrollRect.content = contentRect;
+        scrollRect.viewport = logViewportRect;
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        scrollRect.inertia = true;
+        scrollRect.scrollSensitivity = scrollSensitivity;
     }
 }

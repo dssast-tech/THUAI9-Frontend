@@ -263,7 +263,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 748, y: 0}
+  m_AnchoredPosition: {x: 753, y: 0}
   m_SizeDelta: {x: 400, y: 400}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &406300513
@@ -350,7 +350,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 2.2434082, y: 0, z: 0, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -376,9 +376,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 50194b2481c474a439dd9f77caf0e863, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  logText: {fileID: 0}
+  logText: {fileID: 406300513}
   maxRoundsToKeep: 8
   clearOnPlayStart: 1
+  optimizeLogView: 1
+  logFontSize: 18
+  logBoxSize: {x: 420, y: 320}
+  scrollSensitivity: 25
+  boxBackgroundColor: {r: 0, g: 0, b: 0, a: 0.35}
+  boxBorderColor: {r: 1, g: 1, b: 1, a: 0.85}
 --- !u!1 &1071010640
 GameObject:
   m_ObjectHideFlags: 0
@@ -536,7 +542,6 @@ GameObject:
   - component: {fileID: 1275030894}
   - component: {fileID: 1275030900}
   - component: {fileID: 1275030899}
-  - component: {fileID: 1275030898}
   - component: {fileID: 1275030897}
   - component: {fileID: 1275030896}
   m_Layer: 0
@@ -563,7 +568,7 @@ MonoBehaviour:
   playerDataScript: {fileID: 0}
   soldiersDataScript: {fileID: 0}
   actionsScript: {fileID: 0}
-  replayActionLog: {fileID: 0}
+  replayActionLog: {fileID: 406300515}
 --- !u!4 &1275030895
 Transform:
   m_ObjectHideFlags: 0
@@ -603,21 +608,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 81b38c62ef6a2664284379f560d8492c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &1275030898
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1275030893}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 50194b2481c474a439dd9f77caf0e863, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  logText: {fileID: 0}
-  maxRoundsToKeep: 8
-  clearOnPlayStart: 1
 --- !u!114 &1275030899
 MonoBehaviour:
   m_ObjectHideFlags: 0

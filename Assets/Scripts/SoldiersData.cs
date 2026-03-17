@@ -114,36 +114,4 @@ public class SoldiersData : MonoBehaviour
         return $"{camp} {type} #{id}";
     }
 
-    private void OnGUI()
-    {
-        Camera cam = Camera.main;
-        if (cam == null) return;
-
-        GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 14;
-        style.alignment = TextAnchor.MiddleCenter;
-
-        foreach (var kvp in soldiersMap)
-        {
-            if (!kvp.Value.activeSelf) continue;
-
-            Vector3 screenPos = cam.WorldToScreenPoint(kvp.Value.transform.position + Vector3.up * 0.5f);
-            
-            // In front of camera
-            if (screenPos.z > 0)
-            {
-                // Invert Y because GUI y starts from top
-                float y = Screen.height - screenPos.y;
-                int hp = soldierHP.ContainsKey(kvp.Key) ? soldierHP[kvp.Key] : 0;
-                string type = soldierTypes.ContainsKey(kvp.Key) ? soldierTypes[kvp.Key] : "??";
-                
-                style.normal.textColor = Color.black; 
-                GUI.Label(new Rect(screenPos.x - 51, y - 1, 100, 30), $"{type} HP:{hp}", style);
-                GUI.Label(new Rect(screenPos.x - 49, y + 1, 100, 30), $"{type} HP:{hp}", style);
-                
-                style.normal.textColor = Color.white; 
-                GUI.Label(new Rect(screenPos.x - 50, y, 100, 30), $"{type} HP:{hp}", style);
-            }
-        }
-    }
 }
