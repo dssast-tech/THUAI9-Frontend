@@ -7,6 +7,7 @@ public class SoldiersData : MonoBehaviour
     
     // Store soldier info
     private Dictionary<int, string> soldierTypes = new Dictionary<int, string>();
+    private Dictionary<int, string> soldierCamps = new Dictionary<int, string>();
     private Dictionary<int, int> soldierHP = new Dictionary<int, int>();
     
     private Transform soldiersParent;
@@ -46,6 +47,7 @@ public class SoldiersData : MonoBehaviour
 
             soldiersMap[s.ID] = model;
             soldierTypes[s.ID] = s.soldierType;
+            soldierCamps[s.ID] = s.camp;
             soldierHP[s.ID] = s.stats != null ? s.stats.health : 0;
         }
     }
@@ -92,6 +94,7 @@ public class SoldiersData : MonoBehaviour
         }
         soldiersMap.Clear();
         soldierTypes.Clear();
+        soldierCamps.Clear();
         soldierHP.Clear();
     }
 
@@ -104,36 +107,11 @@ public class SoldiersData : MonoBehaviour
         return null;
     }
 
-    private void OnGUI()
+    public string GetSoldierDisplayName(int id)
     {
-        Camera cam = Camera.main;
-        if (cam == null) return;
-
-        GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 14;
-        style.alignment = TextAnchor.MiddleCenter;
-
-        foreach (var kvp in soldiersMap)
-        {
-            if (!kvp.Value.activeSelf) continue;
-
-            Vector3 screenPos = cam.WorldToScreenPoint(kvp.Value.transform.position + Vector3.up * 0.5f);
-            
-            // In front of camera
-            if (screenPos.z > 0)
-            {
-                // Invert Y because GUI y starts from top
-                float y = Screen.height - screenPos.y;
-                int hp = soldierHP.ContainsKey(kvp.Key) ? soldierHP[kvp.Key] : 0;
-                string type = soldierTypes.ContainsKey(kvp.Key) ? soldierTypes[kvp.Key] : "??";
-                
-                style.normal.textColor = Color.black; 
-                GUI.Label(new Rect(screenPos.x - 51, y - 1, 100, 30), $"{type} HP:{hp}", style);
-                GUI.Label(new Rect(screenPos.x - 49, y + 1, 100, 30), $"{type} HP:{hp}", style);
-                
-                style.normal.textColor = Color.white; 
-                GUI.Label(new Rect(screenPos.x - 50, y, 100, 30), $"{type} HP:{hp}", style);
-            }
-        }
+        string camp = soldierCamps.ContainsKey(id) ? soldierCamps[id] : "Unknown";
+        string type = soldierTypes.ContainsKey(id) ? soldierTypes[id] : "Soldier";
+        return $"{camp} {type} #{id}";
     }
+
 }
