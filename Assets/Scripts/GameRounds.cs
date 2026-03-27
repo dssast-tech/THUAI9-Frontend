@@ -14,6 +14,7 @@ public class GameRounds : MonoBehaviour
     private RootData gameData;
     private int currentRoundIndex = 0;
     private bool isPlaying = false;
+    private bool isAutoPlaying = false;
 
     void Start()
     {
@@ -55,6 +56,7 @@ public class GameRounds : MonoBehaviour
         StopAllCoroutines();
         currentRoundIndex = 0;
         isPlaying = false;
+        isAutoPlaying = false;
 
         // Auto find components if not manually set
         if (mapDataScript == null) mapDataScript = gameObject.GetComponent<MapData>() ?? gameObject.AddComponent<MapData>();
@@ -78,10 +80,96 @@ public class GameRounds : MonoBehaviour
             Debug.LogError("GameRounds 未绑定 replayActionLog，请在 Inspector 手动指定 ReplayActionLog 组件。", this);
         }
 
-        if (!isPlaying && gameData != null && gameData.gameRounds != null && gameData.gameRounds.Length > 0)
+        Debug.Log("GameRounds 初始化完成，等待 NextRound 按钮触发下一回合。", this);
+    }
+
+    // 供 UI Button(OnClick) 绑定：每次点击推进一个回合
+    public void NextRound()
+    {
+        if (isAutoPlaying)
         {
-            StartCoroutine(PlayNextRound());
+            Debug.LogWarning("当前处于自动播放中，NextRound 已忽略。", this);
+            return;
         }
+
+        if (isPlaying)
+        {
+            Debug.LogWarning("当前回合仍在播放中，请稍候再点击 NextRound。", this);
+            return;
+        }
+
+        if (gameData == null || gameData.gameRounds == null || gameData.gameRounds.Length == 0)
+        {
+            Debug.LogWarning("没有可播放的回合数据。", this);
+            return;
+        }
+
+        if (currentRoundIndex >= gameData.gameRounds.Length)
+        {
+            Debug.Log("所有回合已播放完毕。", this);
+            return;
+        }
+
+        StartCoroutine(PlayNextRound());
+    }
+
+    // 供 UI Button(OnClick) 绑定：自动播放剩余所有回合
+    public void AutoPlay()
+    {
+        if (gameData == null || gameData.gameRounds == null || gameData.gameRounds.Length == 0)
+        {
+            Debug.LogWarning("没有可播放的回合数据。", this);
+            return;
+        }
+
+        if (currentRoundIndex >= gameData.gameRounds.Length)
+        {
+            Debug.Log("所有回合已播放完毕。", this);
+            return;
+        }
+
+        if (isAutoPlaying)
+        {
+            Debug.Log("自动播放已在进行中。", this);
+            return;
+        }
+
+        isAutoPlaying = true;
+        StartCoroutine(PlayRemainingRounds());
+    }
+
+    // 可选：供 UI Button(OnClick) 绑定，手动停止自动播放
+    public void StopAutoPlay()
+    {
+        if (!isAutoPlaying)
+        {
+            return;
+        }
+
+        isAutoPlaying = false;
+        Debug.Log("已停止自动播放。", this);
+    }
+
+    private IEnumerator PlayRemainingRounds()
+    {
+        while (isAutoPlaying && currentRoundIndex < gameData.gameRounds.Length)
+        {
+            if (!isPlaying)
+            {
+                yield return StartCoroutine(PlayNextRound());
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+
+        if (currentRoundIndex >= gameData.gameRounds.Length)
+        {
+            Debug.Log("自动播放结束：所有回合已播放完毕。", this);
+        }
+
+        isAutoPlaying = false;
     }
 
     private IEnumerator PlayNextRound()
@@ -113,11 +201,5 @@ public class GameRounds : MonoBehaviour
         }
 
         isPlaying = false;
-
-        // Auto play loop ?
-        if (currentRoundIndex < gameData.gameRounds.Length)
-        {
-            StartCoroutine(PlayNextRound());
-        }
     }
 }
