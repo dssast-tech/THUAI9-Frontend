@@ -10,6 +10,7 @@ public class GameRounds : MonoBehaviour
     public SoldiersData soldiersDataScript;
     public Actions actionsScript;
     public ReplayActionLog replayActionLog;
+    public ActionQueueUI actionQueueUI;
 
     private RootData gameData;
     private int currentRoundIndex = 0;
@@ -63,6 +64,7 @@ public class GameRounds : MonoBehaviour
         if (playerDataScript == null) playerDataScript = gameObject.GetComponent<PlayerData>() ?? gameObject.AddComponent<PlayerData>();
         if (soldiersDataScript == null) soldiersDataScript = gameObject.GetComponent<SoldiersData>() ?? gameObject.AddComponent<SoldiersData>();
         if (actionsScript == null) actionsScript = gameObject.GetComponent<Actions>() ?? gameObject.AddComponent<Actions>();
+        if (actionQueueUI == null) actionQueueUI = FindObjectOfType<ActionQueueUI>();
 
         mapDataScript.ClearMap();
         mapDataScript.GenerateMap(gameData.mapdata);
@@ -71,6 +73,12 @@ public class GameRounds : MonoBehaviour
         soldiersDataScript.InitializeSoldiers(gameData.soldiersData);
 
         actionsScript.Setup(soldiersDataScript);
+        actionsScript.SetActionQueueUI(actionQueueUI);
+
+        if (actionQueueUI != null)
+        {
+            actionQueueUI.Setup(soldiersDataScript);
+        }
         if (replayActionLog != null)
         {
             replayActionLog.Setup(soldiersDataScript);
@@ -179,6 +187,11 @@ public class GameRounds : MonoBehaviour
         if (currentRoundIndex < gameData.gameRounds.Length)
         {
             var round = gameData.gameRounds[currentRoundIndex];
+            if (actionQueueUI != null)
+            {
+                actionQueueUI.ShowRoundQueue(round.actions);
+            }
+
             if (replayActionLog != null)
             {
                 int roundNumber = round.roundNumber > 0 ? round.roundNumber : currentRoundIndex + 1;

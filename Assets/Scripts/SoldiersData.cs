@@ -114,4 +114,42 @@ public class SoldiersData : MonoBehaviour
         return $"{camp} {type} #{id}";
     }
 
+    public string GetSoldierCamp(int id)
+    {
+        return soldierCamps.ContainsKey(id) ? soldierCamps[id] : string.Empty;
+    }
+
+    public string GetSoldierType(int id)
+    {
+        return soldierTypes.ContainsKey(id) ? soldierTypes[id] : string.Empty;
+    }
+
+    public List<int> GetAllSoldierIds(bool onlyAlive)
+    {
+        List<int> ids = new List<int>();
+        foreach (var kvp in soldiersMap)
+        {
+            int id = kvp.Key;
+
+            if (onlyAlive)
+            {
+                bool isAlive = kvp.Value != null && kvp.Value.activeSelf;
+                if (soldierHP.ContainsKey(id) && soldierHP[id] <= 0)
+                {
+                    isAlive = false;
+                }
+
+                if (!isAlive)
+                {
+                    continue;
+                }
+            }
+
+            ids.Add(id);
+        }
+
+        ids.Sort();
+        return ids;
+    }
+
 }

@@ -9,10 +9,16 @@ public class Actions : MonoBehaviour
 
     private SoldiersData soldiersDataRef;
     private List<GameObject> visualEffects = new List<GameObject>();
+    private ActionQueueUI actionQueueUI;
 
     public void Setup(SoldiersData sd)
     {
         soldiersDataRef = sd;
+    }
+
+    public void SetActionQueueUI(ActionQueueUI queueUI)
+    {
+        actionQueueUI = queueUI;
     }
 
     public IEnumerator PlayActions(ActionField[] actions)
@@ -38,8 +44,13 @@ public class Actions : MonoBehaviour
             {
                 yield return StartCoroutine(HandleAbility(act));
             }
+
+            if (actionQueueUI != null)
+            {
+                actionQueueUI.MoveSoldierToQueueEnd(act.soldierId);
+            }
         }
-        
+
         yield return new WaitForSeconds(0.5f); // buffer before round ends visually
         ClearEffects();
     }
@@ -72,7 +83,7 @@ public class Actions : MonoBehaviour
         // Draw path with a LineRenderer
         GameObject pathObj = new GameObject($"Path_{act.soldierId}");
         visualEffects.Add(pathObj);
-        
+
         LineRenderer lr = pathObj.AddComponent<LineRenderer>();
         lr.material = new Material(Shader.Find("Sprites/Default"));
         lr.startColor = Color.green;
@@ -106,8 +117,8 @@ public class Actions : MonoBehaviour
         }
         else
         {
-             // Wait a bit to show the path if soldier not found (fallback)
-             yield return new WaitForSeconds(0.5f);
+            // Wait a bit to show the path if soldier not found (fallback)
+            yield return new WaitForSeconds(0.5f);
         }
     }
 
@@ -119,7 +130,7 @@ public class Actions : MonoBehaviour
             {
             }
         }
-        
+
         yield return new WaitForSeconds(0.5f);
     }
 
