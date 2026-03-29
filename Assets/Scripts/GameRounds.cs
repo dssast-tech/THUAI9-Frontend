@@ -20,7 +20,7 @@ public class GameRounds : MonoBehaviour
     void Start()
     {
         // Try to load default on start
-        string path = Path.Combine(Application.streamingAssetsPath, "final_example.json");
+        string path = Path.Combine(Application.streamingAssetsPath, "logNew.json");
         LoadAndPlay(path);
     }
 
@@ -78,6 +78,7 @@ public class GameRounds : MonoBehaviour
         if (actionQueueUI != null)
         {
             actionQueueUI.Setup(soldiersDataScript);
+            actionQueueUI.PrecomputeRoundQueues(gameData.gameRounds);
         }
         if (replayActionLog != null)
         {
@@ -189,7 +190,7 @@ public class GameRounds : MonoBehaviour
             var round = gameData.gameRounds[currentRoundIndex];
             if (actionQueueUI != null)
             {
-                actionQueueUI.ShowRoundQueue(round.actions);
+                actionQueueUI.ShowRoundQueue(currentRoundIndex, round.actions);
             }
 
             if (replayActionLog != null)

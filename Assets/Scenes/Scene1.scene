@@ -364,12 +364,20 @@ MonoBehaviour:
   verboseLog: 1
   tintPortraitByCamp: 0
   showInitialQueueOnSetup: 1
-  initialQueueCount: 4
+  initialQueueCount: 2
   autoFitItemSizeToQueueWidth: 1
   fitItemCount: 4
   minItemSize: 48
   maxItemSize: 120
-  portraitMappings: []
+  portraitMappings:
+  - soldierId: 0
+    camp: 
+    soldierType: 
+    portrait: {fileID: 21300000, guid: b024fbb0dfe8daa48a5cb20f58346699, type: 3}
+  - soldierId: 1
+    camp: 
+    soldierType: 
+    portrait: {fileID: 21300000, guid: 1093f40e12014fb44a0f1fece11599ea, type: 3}
   actionIconMappings: []
 --- !u!1 &140001078
 GameObject:

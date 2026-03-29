@@ -52,6 +52,7 @@ public class ActionQueueUI : MonoBehaviour
     private readonly List<GameObject> activeItems = new List<GameObject>();
     private readonly List<int> activeSoldierIds = new List<int>();
     private readonly Dictionary<string, Sprite> resourcePortraitCache = new Dictionary<string, Sprite>();
+    private readonly List<List<int>> precomputedRoundQueues = new List<List<int>>();
     private SoldiersData soldiersDataRef;
     private Vector2 templateSize = new Vector2(64f, 64f);
 
@@ -102,11 +103,60 @@ public class ActionQueueUI : MonoBehaviour
         ShowInitialQueue();
     }
 
-    public void ShowRoundQueue(ActionField[] actions)
+    public void PrecomputeRoundQueues(GameRoundField[] rounds)
+    {
+        precomputedRoundQueues.Clear();
+
+        if (rounds == null || rounds.Length == 0 || soldiersDataRef == null)
+        {
+            return;
+        }
+
+        List<int> baseQueue = soldiersDataRef.GetAllSoldierIds(true);
+        if (baseQueue.Count == 0)
+        {
+            baseQueue = soldiersDataRef.GetAllSoldierIds(false);
+        }
+
+        if (baseQueue.Count == 0)
+        {
+            return;
+        }
+
+        List<int> currentQueue = new List<int>(baseQueue);
+
+        for (int i = 0; i < rounds.Length; i++)
+        {
+            GameRoundField round = rounds[i];
+            ActionField[] actions = round != null ? round.actions : null;
+
+            bool hasValidAction = TryGetFirstValidActor(actions, out int firstActorId);
+            List<int> roundQueue = new List<int>(currentQueue);
+
+            // 若该回合有行动，则将首个行动士兵放到队首。
+            // 若该回合无行动，则保持上一回合队首不变。
+            if (hasValidAction)
+            {
+                EnsureIdInQueue(roundQueue, firstActorId);
+                RotateQueueToFront(roundQueue, firstActorId);
+            }
+
+            precomputedRoundQueues.Add(roundQueue);
+
+            currentQueue = new List<int>(roundQueue);
+        }
+
+        if (verboseLog)
+        {
+            Debug.Log($"[ActionQueueUI] 已预计算回合队列，rounds={precomputedRoundQueues.Count}", this);
+        }
+    }
+
+    public void ShowRoundQueue(int roundIndex, ActionField[] actions)
     {
         ClearQueue();
 
-        if (queueContent == null || actions == null || actions.Length == 0)
+        if (queueContent == null)
         {
             return;
         }
@@ -117,10 +167,21 @@ public class ActionQueueUI : MonoBehaviour
             return;
         }
 
-        List<int> queueSoldierIds = BuildQueueSoldierIds(actions);
+        if (!TryGetPrecomputedQueue(roundIndex, out List<int> queueSoldierIds))
+        {
+            if (verboseLog)
+            {
+                Debug.LogWarning($"[ActionQueueUI] 未找到预计算队列，roundIndex={roundIndex}", this);
+            }
+            return;
+        }
+
+        if (queueSoldierIds == null || queueSoldierIds.Count == 0)
+        {
+            return;
+        }
 
         int spawned = 0;
-        int validActions = 0;
         for (int i = 0; i < queueSoldierIds.Count; i++)
         {
             int soldierId = queueSoldierIds[i];
@@ -147,7 +208,6 @@ public class ActionQueueUI : MonoBehaviour
             activeItems.Add(item);
             activeSoldierIds.Add(soldierId);
             spawned++;
-            validActions++;
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(queueContent);
@@ -155,7 +215,8 @@ public class ActionQueueUI : MonoBehaviour
 
         if (verboseLog)
         {
-            Debug.Log($"[ActionQueueUI] actions={actions.Length}, queueSoldiers={queueSoldierIds.Count}, spawned={spawned}, visibleLimit={maxVisibleCount}", this);
+            int actionCount = actions != null ? actions.Length : 0;
+            Debug.Log($"[ActionQueueUI] roundIndex={roundIndex}, actions={actionCount}, queueSoldiers={queueSoldierIds.Count}, spawned={spawned}, visibleLimit={maxVisibleCount}", this);
         }
 
         RefreshCurrentVisual();
@@ -357,54 +418,6 @@ public class ActionQueueUI : MonoBehaviour
 
         activeItems.Clear();
         activeSoldierIds.Clear();
-    }
-
-    private List<int> BuildQueueSoldierIds(ActionField[] actions)
-    {
-        List<int> ids = new List<int>();
-        HashSet<int> seen = new HashSet<int>();
-
-        if (actions != null)
-        {
-            for (int i = 0; i < actions.Length; i++)
-            {
-                ActionField action = actions[i];
-                if (action == null || string.IsNullOrEmpty(action.actionType))
-                {
-                    continue;
-                }
-
-                if (seen.Add(action.soldierId))
-                {
-                    ids.Add(action.soldierId);
-                }
-            }
-        }
-
-        if (ids.Count < initialQueueCount && soldiersDataRef != null)
-        {
-            List<int> allSoldiers = soldiersDataRef.GetAllSoldierIds(true);
-            if (allSoldiers.Count == 0)
-            {
-                allSoldiers = soldiersDataRef.GetAllSoldierIds(false);
-            }
-
-            for (int i = 0; i < allSoldiers.Count; i++)
-            {
-                int soldierId = allSoldiers[i];
-                if (seen.Add(soldierId))
-                {
-                    ids.Add(soldierId);
-                }
-
-                if (ids.Count >= initialQueueCount)
-                {
-                    break;
-                }
-            }
-        }
-
-        return ids;
     }
 
     private string ResolveFirstActionTypeBySoldier(ActionField[] actions, int soldierId)
@@ -659,6 +672,89 @@ public class ActionQueueUI : MonoBehaviour
         }
 
         return unknownCampTint;
+    }
+
+    private bool TryGetPrecomputedQueue(int roundIndex, out List<int> queueSoldierIds)
+    {
+        queueSoldierIds = null;
+
+        if (roundIndex < 0 || roundIndex >= precomputedRoundQueues.Count)
+        {
+            return false;
+        }
+
+        List<int> cached = precomputedRoundQueues[roundIndex];
+        if (cached == null || cached.Count == 0)
+        {
+            return false;
+        }
+
+        queueSoldierIds = new List<int>(cached);
+        return true;
+    }
+
+    private bool TryGetFirstValidActor(ActionField[] actions, out int soldierId)
+    {
+        soldierId = -1;
+        if (actions == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < actions.Length; i++)
+        {
+            ActionField action = actions[i];
+            if (action == null || string.IsNullOrEmpty(action.actionType))
+            {
+                continue;
+            }
+
+            soldierId = action.soldierId;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void EnsureIdInQueue(List<int> queue, int soldierId)
+    {
+        if (queue == null)
+        {
+            return;
+        }
+
+        if (!queue.Contains(soldierId))
+        {
+            queue.Add(soldierId);
+        }
+    }
+
+    private void RotateQueueToFront(List<int> queue, int soldierId)
+    {
+        if (queue == null || queue.Count == 0)
+        {
+            return;
+        }
+
+        int index = queue.IndexOf(soldierId);
+        if (index <= 0)
+        {
+            return;
+        }
+
+        List<int> rotated = new List<int>(queue.Count);
+        for (int i = index; i < queue.Count; i++)
+        {
+            rotated.Add(queue[i]);
+        }
+
+        for (int i = 0; i < index; i++)
+        {
+            rotated.Add(queue[i]);
+        }
+
+        queue.Clear();
+        queue.AddRange(rotated);
     }
 
     private Image FindChildImageByName(Transform root, string name)
