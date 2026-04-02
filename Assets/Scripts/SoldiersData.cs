@@ -4,11 +4,14 @@ using UnityEngine;
 public class SoldiersData : MonoBehaviour
 {
     private Dictionary<int, GameObject> soldiersMap = new Dictionary<int, GameObject>();
+    private Dictionary<GameObject, int> modelToSoldierId = new Dictionary<GameObject, int>();
     
     // Store soldier info
     private Dictionary<int, string> soldierTypes = new Dictionary<int, string>();
     private Dictionary<int, string> soldierCamps = new Dictionary<int, string>();
     private Dictionary<int, int> soldierHP = new Dictionary<int, int>();
+    private Dictionary<int, int> soldierStrength = new Dictionary<int, int>();
+    private Dictionary<int, int> soldierIntelligence = new Dictionary<int, int>();
     
     private Transform soldiersParent;
 
@@ -46,9 +49,12 @@ public class SoldiersData : MonoBehaviour
                 model.transform.localScale = new Vector3(0.6f, 1.2f, 0.6f);
 
             soldiersMap[s.ID] = model;
+            modelToSoldierId[model] = s.ID;
             soldierTypes[s.ID] = s.soldierType;
             soldierCamps[s.ID] = s.camp;
             soldierHP[s.ID] = s.stats != null ? s.stats.health : 0;
+            soldierStrength[s.ID] = s.stats != null ? s.stats.strength : 0;
+            soldierIntelligence[s.ID] = s.stats != null ? s.stats.intelligence : 0;
         }
     }
 
@@ -77,10 +83,14 @@ public class SoldiersData : MonoBehaviour
                 if (stat.Stats != null)
                 {
                     soldierHP[stat.soldierId] = stat.Stats.health;
+                    soldierStrength[stat.soldierId] = stat.Stats.strength;
+                    soldierIntelligence[stat.soldierId] = stat.Stats.intelligence;
                 }
                 else if (stat.stats != null)
                 {
                     soldierHP[stat.soldierId] = stat.stats.health;
+                    soldierStrength[stat.soldierId] = stat.stats.strength;
+                    soldierIntelligence[stat.soldierId] = stat.stats.intelligence;
                 }
             }
         }
@@ -93,9 +103,12 @@ public class SoldiersData : MonoBehaviour
             Destroy(kvp.Value);
         }
         soldiersMap.Clear();
+        modelToSoldierId.Clear();
         soldierTypes.Clear();
         soldierCamps.Clear();
         soldierHP.Clear();
+        soldierStrength.Clear();
+        soldierIntelligence.Clear();
     }
 
     public GameObject GetSoldierModel(int id)
@@ -152,4 +165,62 @@ public class SoldiersData : MonoBehaviour
         return ids;
     }
 
+    public bool TryGetSoldierIdByModel(GameObject modelOrChild, out int soldierId)
+    {
+        soldierId = -1;
+        if (modelOrChild == null)
+        {
+            return false;
+        }
+
+        Transform current = modelOrChild.transform;
+        while (current != null)
+        {
+            if (modelToSoldierId.TryGetValue(current.gameObject, out soldierId))
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        return false;
+    }
+
+    public bool TryGetSoldierInfo(int id, out SoldierRuntimeInfo info)
+    {
+        info = null;
+        if (!soldiersMap.TryGetValue(id, out GameObject model) || model == null)
+        {
+            return false;
+        }
+
+        Vector3 position = model.transform.position;
+        info = new SoldierRuntimeInfo
+        {
+            id = id,
+            soldierType = soldierTypes.ContainsKey(id) ? soldierTypes[id] : string.Empty,
+            camp = soldierCamps.ContainsKey(id) ? soldierCamps[id] : string.Empty,
+            health = soldierHP.ContainsKey(id) ? soldierHP[id] : 0,
+            strength = soldierStrength.ContainsKey(id) ? soldierStrength[id] : 0,
+            intelligence = soldierIntelligence.ContainsKey(id) ? soldierIntelligence[id] : 0,
+            position = position,
+            isAlive = model.activeSelf && (!soldierHP.ContainsKey(id) || soldierHP[id] > 0)
+        };
+
+        return true;
+    }
+
+}
+
+public class SoldierRuntimeInfo
+{
+    public int id;
+    public string soldierType;
+    public string camp;
+    public int health;
+    public int strength;
+    public int intelligence;
+    public Vector3 position;
+    public bool isAlive;
 }

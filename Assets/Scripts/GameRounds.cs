@@ -11,6 +11,7 @@ public class GameRounds : MonoBehaviour
     public Actions actionsScript;
     public ReplayActionLog replayActionLog;
     public ActionQueueUI actionQueueUI;
+    public SoldierHoverTooltip soldierHoverTooltip;
 
     private RootData gameData;
     private int currentRoundIndex = 0;
@@ -64,6 +65,7 @@ public class GameRounds : MonoBehaviour
         if (playerDataScript == null) playerDataScript = gameObject.GetComponent<PlayerData>() ?? gameObject.AddComponent<PlayerData>();
         if (soldiersDataScript == null) soldiersDataScript = gameObject.GetComponent<SoldiersData>() ?? gameObject.AddComponent<SoldiersData>();
         if (actionsScript == null) actionsScript = gameObject.GetComponent<Actions>() ?? gameObject.AddComponent<Actions>();
+        if (soldierHoverTooltip == null) soldierHoverTooltip = gameObject.GetComponent<SoldierHoverTooltip>() ?? gameObject.AddComponent<SoldierHoverTooltip>();
         if (actionQueueUI == null) actionQueueUI = FindObjectOfType<ActionQueueUI>();
 
         mapDataScript.ClearMap();
@@ -74,6 +76,10 @@ public class GameRounds : MonoBehaviour
 
         actionsScript.Setup(soldiersDataScript);
         actionsScript.SetActionQueueUI(actionQueueUI);
+        if (soldierHoverTooltip != null)
+        {
+            soldierHoverTooltip.SetSoldiersData(soldiersDataScript);
+        }
 
         if (actionQueueUI != null)
         {
