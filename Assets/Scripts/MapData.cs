@@ -54,14 +54,17 @@ public class MapData : MonoBehaviour
 
         MeshCollider meshCollider = terrainObject.AddComponent<MeshCollider>();
         meshCollider.sharedMesh = terrainMesh;
-        
+
+        mapBounds = terrainMesh.bounds;
+        hasMapBounds = true;
+
         // Center camera towards map center
         Camera mainCamera = Camera.main;
         if (mainCamera != null)
         {
             mainCamera.transform.position = new Vector3(width / 2f, Mathf.Max(width, height), -height / 2f);
             mainCamera.transform.LookAt(new Vector3(width / 2f, 0, height / 2f));
-            
+
             // Add or get CameraController
             if (mainCamera.gameObject.GetComponent<CameraController>() == null)
             {
@@ -78,7 +81,7 @@ public class MapData : MonoBehaviour
         int sampleWidth = (width + borderTiles * 2) * subdivisionsPerTile + 1;
         int sampleHeight = (height + borderTiles * 2) * subdivisionsPerTile + 1;
         float worldOffset = borderTiles + 0.5f;
-        
+
         // First pass: collect all quad corner positions and heights
         Vector3[] samplePositions = new Vector3[sampleWidth * sampleHeight];
         for (int z = 0; z < sampleHeight; z++)
@@ -197,10 +200,10 @@ public class MapData : MonoBehaviour
             mesh.triangles = triangles.ToArray();
             mesh.uv = uv.ToArray();
         }
-        
+
         // Calculate flat (unsmoothed) normals for independent triangles
         mesh.RecalculateNormals();
-        
+
         mesh.RecalculateTangents();
         mesh.RecalculateBounds();
         return mesh;
@@ -318,7 +321,7 @@ public class MapData : MonoBehaviour
 
         return row[x] * heightScale;
     }
-    
+
     public void ClearMap()
     {
         if (mapParent != null)
