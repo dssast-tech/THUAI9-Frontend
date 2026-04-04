@@ -13,7 +13,6 @@ public class GameRounds : MonoBehaviour
     public ActionQueueUI actionQueueUI;
     public SoldierHoverTooltip soldierHoverTooltip;
     public MinimapController minimapController;
-
     private RootData gameData;
     private int currentRoundIndex = 0;
     private bool isPlaying = false;

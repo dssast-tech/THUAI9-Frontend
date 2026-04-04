@@ -20,13 +20,10 @@ public class MinimapController : MonoBehaviour
 
     private MapData mapData;
     private SoldiersData soldiersData;
-
     private Camera minimapCamera;
     private RenderTexture minimapTexture;
-
     private RectTransform minimapRect;
     private RectTransform markerRect;
-
     private Transform currentTarget;
     private int currentTargetId = -1;
 
@@ -43,11 +40,6 @@ public class MinimapController : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (minimapCamera == null || minimapRect == null || markerRect == null)
-        {
-            return;
-        }
-
         if (currentTarget == null || !currentTarget.gameObject.activeInHierarchy)
         {
             RefreshTarget();
@@ -66,16 +58,6 @@ public class MinimapController : MonoBehaviour
     {
         currentTarget = null;
         currentTargetId = -1;
-
-        if (soldiersData == null)
-        {
-            soldiersData = FindObjectOfType<SoldiersData>();
-        }
-
-        if (soldiersData == null)
-        {
-            return;
-        }
 
         if (targetSoldierId >= 0)
         {
@@ -125,16 +107,6 @@ public class MinimapController : MonoBehaviour
 
     public void RebuildMinimapView()
     {
-        if (mapData == null)
-        {
-            mapData = FindObjectOfType<MapData>();
-        }
-
-        if (mapData == null || minimapCamera == null)
-        {
-            return;
-        }
-
         if (!mapData.TryGetMapBounds(out Bounds bounds))
         {
             return;
