@@ -10365,13 +10365,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 250900685}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.0059847683, y: -0.004660369, z: 0.06573236, w: 0.99780846}
-  m_LocalPosition: {x: -76.26, y: 12.01, z: 1207.23}
+  m_LocalRotation: {x: 0.06677143, y: -0.008152349, z: -0.021865541, w: 0.99749535}
+  m_LocalPosition: {x: -76.347015, y: 12.530005, z: 1207.1558}
   m_LocalScale: {x: 2, y: 0.59999996, z: 1.9999998}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 186586557}
-  m_LocalEulerAnglesHint: {x: -0.64900005, y: -0.578, z: 7.5410004}
+  m_LocalEulerAnglesHint: {x: 7.634, y: -1.109, z: -2.585}
 --- !u!23 &250900687
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -51528,7 +51528,7 @@ MonoBehaviour:
   subdivisionLevel: 5
   integerFlatHalfSize: 0.22
   integerBlendWidth: 0.28
-  shareVertices: 1
+  shareVertices: 0
   heightScale: 0.5
   borderHeightValue: -5
   terrainMaterial: {fileID: 2100000, guid: 801f1905883bd5b45b92fa0ba329a1a1, type: 2}
@@ -56213,7 +56213,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: next tound
+  m_text: next round
   m_enableAdvanceTextProcess: 0
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
