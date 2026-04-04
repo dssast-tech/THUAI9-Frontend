@@ -1,7 +1,7 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using DG.Tweening;
 
 public class GameRounds : MonoBehaviour
 {
@@ -18,6 +18,8 @@ public class GameRounds : MonoBehaviour
     private int currentRoundIndex = 0;
     private bool isPlaying = false;
     private bool isAutoPlaying = false;
+    private Sequence currentActionSequence;
+    private Tween roundEndPauseTween;
 
     void Start()
     {
@@ -56,7 +58,7 @@ public class GameRounds : MonoBehaviour
 
     private void InitializeGame()
     {
-        StopAllCoroutines();
+        KillPlaybackTweens();
         currentRoundIndex = 0;
         isPlaying = false;
         isAutoPlaying = false;
@@ -114,39 +116,19 @@ public class GameRounds : MonoBehaviour
             return;
         }
 
-        if (isPlaying)
+        if (!CanPlayNextRound(logWhenBlocked: true))
         {
-            Debug.LogWarning("当前回合仍在播放中，请稍候再点击 NextRound。", this);
             return;
         }
 
-        if (gameData == null || gameData.gameRounds == null || gameData.gameRounds.Length == 0)
-        {
-            Debug.LogWarning("没有可播放的回合数据。", this);
-            return;
-        }
-
-        if (currentRoundIndex >= gameData.gameRounds.Length)
-        {
-            Debug.Log("所有回合已播放完毕。", this);
-            return;
-        }
-
-        StartCoroutine(PlayNextRound());
+        PlayNextRound();
     }
 
     // 供 UI Button(OnClick) 绑定：自动播放剩余所有回合
     public void AutoPlay()
     {
-        if (gameData == null || gameData.gameRounds == null || gameData.gameRounds.Length == 0)
+        if (!HasRoundsToPlay(logWhenBlocked: true))
         {
-            Debug.LogWarning("没有可播放的回合数据。", this);
-            return;
-        }
-
-        if (currentRoundIndex >= gameData.gameRounds.Length)
-        {
-            Debug.Log("所有回合已播放完毕。", this);
             return;
         }
 
@@ -157,7 +139,10 @@ public class GameRounds : MonoBehaviour
         }
 
         isAutoPlaying = true;
-        StartCoroutine(PlayRemainingRounds());
+        if (!isPlaying)
+        {
+            PlayNextRound();
+        }
     }
 
     // 可选：供 UI Button(OnClick) 绑定，手动停止自动播放
@@ -182,51 +167,69 @@ public class GameRounds : MonoBehaviour
         minimapController.SetTargetSoldierId(soldierId);
     }
 
-    private IEnumerator PlayRemainingRounds()
+    private bool HasRoundsToPlay(bool logWhenBlocked)
     {
-        while (isAutoPlaying && currentRoundIndex < gameData.gameRounds.Length)
+        if (gameData == null || gameData.gameRounds == null || gameData.gameRounds.Length == 0)
         {
-            if (!isPlaying)
+            if (logWhenBlocked)
             {
-                yield return StartCoroutine(PlayNextRound());
+                Debug.LogWarning("没有可播放的回合数据。", this);
             }
-            else
-            {
-                yield return null;
-            }
+            return false;
         }
 
         if (currentRoundIndex >= gameData.gameRounds.Length)
         {
-            Debug.Log("自动播放结束：所有回合已播放完毕。", this);
+            if (logWhenBlocked)
+            {
+                Debug.Log("所有回合已播放完毕。", this);
+            }
+            return false;
         }
 
-        isAutoPlaying = false;
+        return true;
     }
 
-    private IEnumerator PlayNextRound()
+    private bool CanPlayNextRound(bool logWhenBlocked)
     {
+        if (isPlaying)
+        {
+            if (logWhenBlocked)
+            {
+                Debug.LogWarning("当前回合仍在播放中，请稍候再点击 NextRound。", this);
+            }
+            return false;
+        }
+
+        return HasRoundsToPlay(logWhenBlocked);
+    }
+
+    private void PlayNextRound()
+    {
+        if (!CanPlayNextRound(logWhenBlocked: false))
+        {
+            return;
+        }
+
         isPlaying = true;
 
-        if (currentRoundIndex < gameData.gameRounds.Length)
+        var round = gameData.gameRounds[currentRoundIndex];
+        if (actionQueueUI != null)
         {
-            var round = gameData.gameRounds[currentRoundIndex];
-            if (actionQueueUI != null)
-            {
-                actionQueueUI.ShowRoundQueue(currentRoundIndex, round.actions);
-            }
+            actionQueueUI.ShowRoundQueue(currentRoundIndex, round.actions);
+        }
 
-            if (replayActionLog != null)
-            {
-                int roundNumber = round.roundNumber > 0 ? round.roundNumber : currentRoundIndex + 1;
-                var actionDescriptions = actionsScript.BuildRoundActionDescriptions(round.actions);
-                replayActionLog.ShowRoundActions(roundNumber, actionDescriptions);
-            }
+        if (replayActionLog != null)
+        {
+            int roundNumber = round.roundNumber > 0 ? round.roundNumber : currentRoundIndex + 1;
+            var actionDescriptions = actionsScript.BuildRoundActionDescriptions(round.actions);
+            replayActionLog.ShowRoundActions(roundNumber, actionDescriptions);
+        }
 
-            // Play Actions First
-            yield return StartCoroutine(actionsScript.PlayActions(round.actions));
+        currentActionSequence = actionsScript.PlayActions(round.actions, () =>
+        {
+            currentActionSequence = null;
 
-            // Update Stats
             soldiersDataScript.UpdateSoldierStats(round.stats);
 
             if (minimapController != null)
@@ -239,9 +242,39 @@ public class GameRounds : MonoBehaviour
 
             currentRoundIndex++;
 
-            yield return new WaitForSeconds(1.0f); // Round end pause
+            roundEndPauseTween?.Kill();
+            roundEndPauseTween = DOVirtual.DelayedCall(1.0f, OnRoundCompleteDelayFinished).SetTarget(this);
+        });
+    }
+
+    private void OnRoundCompleteDelayFinished()
+    {
+        roundEndPauseTween = null;
+        isPlaying = false;
+
+        if (currentRoundIndex >= gameData.gameRounds.Length)
+        {
+            if (isAutoPlaying)
+            {
+                Debug.Log("自动播放结束：所有回合已播放完毕。", this);
+            }
+
+            isAutoPlaying = false;
+            return;
         }
 
-        isPlaying = false;
+        if (isAutoPlaying)
+        {
+            PlayNextRound();
+        }
+    }
+
+    private void KillPlaybackTweens()
+    {
+        currentActionSequence?.Kill();
+        currentActionSequence = null;
+
+        roundEndPauseTween?.Kill();
+        roundEndPauseTween = null;
     }
 }

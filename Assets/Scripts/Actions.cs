@@ -1,5 +1,6 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 
 public class Actions : MonoBehaviour
@@ -21,10 +22,16 @@ public class Actions : MonoBehaviour
         actionQueueUI = queueUI;
     }
 
-    public IEnumerator PlayActions(ActionField[] actions)
+    public Sequence PlayActions(ActionField[] actions, Action onComplete = null)
     {
         ClearEffects();
-        if (actions == null || actions.Length == 0) yield break;
+        if (actions == null || actions.Length == 0)
+        {
+            onComplete?.Invoke();
+            return null;
+        }
+
+        Sequence roundSequence = DOTween.Sequence();
 
         foreach (var act in actions)
         {
@@ -34,15 +41,28 @@ public class Actions : MonoBehaviour
 
             if (type == "movement")
             {
-                yield return StartCoroutine(HandleMovement(act));
+                roundSequence.Append(BuildMovementSequence(act));
             }
             else if (type == "attack")
             {
-                yield return StartCoroutine(HandleAttack(act));
+                // roundSequence.AppendInterval(0.5f);
             }
             else if (type == "ability")
             {
-                yield return StartCoroutine(HandleAbility(act));
+                // roundSequence.AppendCallback(() =>
+                // {
+                //     if (act.targetPosition == null)
+                //     {
+                //         return;
+                //     }
+
+                //     GameObject impact = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                //     impact.transform.position = new Vector3(act.targetPosition.x, act.targetPosition.y * 0.5f, act.targetPosition.z);
+                //     impact.transform.localScale = Vector3.one * 1.5f;
+                //     impact.GetComponent<Renderer>().material.color = new Color(1, 0, 1, 0.5f);
+                //     visualEffects.Add(impact);
+                // });
+                // roundSequence.AppendInterval(0.8f);
             }
 
             if (actionQueueUI != null)
@@ -51,8 +71,14 @@ public class Actions : MonoBehaviour
             }
         }
 
-        yield return new WaitForSeconds(0.5f); // buffer before round ends visually
-        ClearEffects();
+        roundSequence.AppendInterval(0.5f); // buffer before round ends visually
+        roundSequence.OnComplete(() =>
+        {
+            ClearEffects();
+            onComplete?.Invoke();
+        });
+        roundSequence.Play();
+        return roundSequence;
     }
 
     public List<string> BuildRoundActionDescriptions(ActionField[] actions)
@@ -76,9 +102,13 @@ public class Actions : MonoBehaviour
         return lines;
     }
 
-    private IEnumerator HandleMovement(ActionField act)
+    private Sequence BuildMovementSequence(ActionField act)
     {
-        if (act.path == null || act.path.Length == 0) yield break;
+        Sequence movementSequence = DOTween.Sequence();
+        if (act.path == null || act.path.Length == 0)
+        {
+            return movementSequence;
+        }
 
         // Draw path with a LineRenderer
         GameObject pathObj = new GameObject($"Path_{act.soldierId}");
@@ -96,7 +126,7 @@ public class Actions : MonoBehaviour
         for (int i = 0; i < act.path.Length; i++)
         {
             // Position on top of the tile
-            Vector3 pos = new Vector3(act.path[i].x, act.path[i].y + 0.5f, act.path[i].z);
+            Vector3 pos = new Vector3(act.path[i].x, act.path[i].y * 0.5f, act.path[i].z);
             lr.SetPosition(i, pos);
             worldPath[i] = pos;
         }
@@ -104,34 +134,64 @@ public class Actions : MonoBehaviour
         GameObject soldier = soldiersDataRef.GetSoldierModel(act.soldierId);
         if (soldier != null && worldPath.Length > 0)
         {
-            float moveSpeed = 5.0f; // Units per second
+            float moveSpeed = 2.0f; // Units per second
+            float turnSpeedDegrees = 540f; // Degrees per second
+            Transform soldierTransform = soldier.transform;
+            Animator animator = soldier.GetComponentInChildren<Animator>();
+
+            movementSequence.AppendCallback(() =>
+            {
+                if (animator != null)
+                {
+                    animator.SetBool("Moving", true);
+                }
+            });
+            Vector3 currentPos = soldierTransform.position;
+            Quaternion currentRotation = soldierTransform.rotation;
             foreach (Vector3 targetPos in worldPath)
             {
-                while (Vector3.Distance(soldier.transform.position, targetPos) > 0.05f)
+                Vector3 flatDirection = new Vector3(targetPos.x - currentPos.x, 0f, targetPos.z - currentPos.z);
+                if (flatDirection.sqrMagnitude > 0.0001f)
                 {
-                    soldier.transform.position = Vector3.MoveTowards(soldier.transform.position, targetPos, moveSpeed * Time.deltaTime);
-                    yield return null; // Wait for next frame
+                    Quaternion targetRotation = Quaternion.LookRotation(flatDirection.normalized, Vector3.up);
+                    float turnAngle = Quaternion.Angle(currentRotation, targetRotation);
+                    if (turnAngle > 0.1f)
+                    {
+                        float turnDuration = turnAngle / turnSpeedDegrees;
+                        movementSequence.Append(soldierTransform.DORotateQuaternion(targetRotation, turnDuration).SetEase(Ease.OutSine));
+                    }
+
+                    currentRotation = targetRotation;
                 }
-                soldier.transform.position = targetPos; // Ensure exact snap
-            }
-        }
-        else
-        {
-            // Wait a bit to show the path if soldier not found (fallback)
-            yield return new WaitForSeconds(0.5f);
-        }
-    }
 
-    private IEnumerator HandleAttack(ActionField act)
-    {
-        if (act.damageDealt != null)
-        {
-            foreach (var dmg in act.damageDealt)
+                float segmentDistance = flatDirection.magnitude;
+                float duration = segmentDistance / moveSpeed;
+
+                if (duration > 0f)
+                {
+                    if (Mathf.Abs(flatDirection.x) > 0.01f)
+                    {
+                        movementSequence.Append(soldierTransform.DOMoveX(targetPos.x, duration).SetEase(Ease.Linear));
+                    }
+                    else if (Mathf.Abs(flatDirection.z) > 0.01f)
+                    {
+                        movementSequence.Append(soldierTransform.DOMoveZ(targetPos.z, duration).SetEase(Ease.Linear));
+                    }
+                }
+
+                currentPos = targetPos;
+            }
+
+            movementSequence.AppendCallback(() =>
             {
-            }
+                if (animator != null)
+                {
+                    animator.SetBool("Moving", false);
+                }
+            });
         }
 
-        yield return new WaitForSeconds(0.5f);
+        return movementSequence;
     }
 
     private List<string> BuildActionDescriptionLines(ActionField act)
@@ -218,21 +278,6 @@ public class Actions : MonoBehaviour
     private string FormatPosition(PositionField position)
     {
         return $"({position.x}, {position.y}, {position.z})";
-    }
-
-    private IEnumerator HandleAbility(ActionField act)
-    {
-        if (act.targetPosition != null)
-        {
-            // Draw a temporary impact sphere
-            GameObject impact = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            impact.transform.position = new Vector3(act.targetPosition.x, act.targetPosition.y + 0.5f, act.targetPosition.z);
-            impact.transform.localScale = Vector3.one * 1.5f;
-            impact.GetComponent<Renderer>().material.color = new Color(1, 0, 1, 0.5f);
-            visualEffects.Add(impact);
-        }
-
-        yield return new WaitForSeconds(0.8f);
     }
 
     private void ClearEffects()

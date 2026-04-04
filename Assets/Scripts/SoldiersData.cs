@@ -7,13 +7,23 @@ public class SoldiersData : MonoBehaviour
     private Dictionary<GameObject, int> modelToSoldierId = new Dictionary<GameObject, int>();
     
     // Store soldier info
-    private Dictionary<int, string> soldierTypes = new Dictionary<int, string>();
+    private Dictionary<int, int> soldierTypes = new Dictionary<int, int>();
     private Dictionary<int, string> soldierCamps = new Dictionary<int, string>();
     private Dictionary<int, int> soldierHP = new Dictionary<int, int>();
     private Dictionary<int, int> soldierStrength = new Dictionary<int, int>();
     private Dictionary<int, int> soldierIntelligence = new Dictionary<int, int>();
     
     private Transform soldiersParent;
+
+    public GameObject warriorBluePrefab;
+    public GameObject swordsmanBluePrefab;
+    public GameObject archerBluePrefab;
+    public GameObject mageBluePrefab;
+    public GameObject warriorRedPrefab;
+    public GameObject swordsmanRedPrefab;
+    public GameObject archerRedPrefab;
+    public GameObject mageRedPrefab;
+
 
     public void InitializeSoldiers(SoldierInitDataField[] soldiersDataData)
     {
@@ -24,29 +34,54 @@ public class SoldiersData : MonoBehaviour
 
         foreach (var s in soldiersDataData)
         {
-            GameObject model = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            GameObject model = null;
+            switch (s.soldierType.ToString() + "_" + s.camp.ToLower())
+            {
+                case "1_blue":
+                    model = Instantiate(warriorBluePrefab);
+                    break;
+                case "2_blue":
+                    model = Instantiate(swordsmanBluePrefab);
+                    break;
+                case "3_blue":
+                    model = Instantiate(archerBluePrefab);
+                    break;
+                case "4_blue":
+                    model = Instantiate(mageBluePrefab);
+                    break;
+                case "1_red":
+                    model = Instantiate(warriorRedPrefab);
+                    break;
+                case "2_red":
+                    model = Instantiate(swordsmanRedPrefab);
+                    break;
+                case "3_red":
+                    model = Instantiate(archerRedPrefab);
+                    break;
+                case "4_red":
+                    model = Instantiate(mageRedPrefab);
+                    break;
+            }
+
+            if (model == null)
+            {
+                model = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            }
+
             model.transform.SetParent(soldiersParent);
             
             // Set position
             float sizeY = s.position.y; 
             // In MapData z represents row and x represents col. Position needs to match perfectly.
             // s.position is {x, y, z}. y is height, so actual map tile y=position.y, but visually model's world y should be position.y or slightly above.
-            model.transform.position = new Vector3(s.position.x, sizeY + 0.5f, s.position.z);
+            model.transform.position = new Vector3(s.position.x, sizeY * 0.5f, s.position.z);
             model.name = $"Soldier_{s.ID}_{s.soldierType}_{s.camp}";
 
             Renderer r = model.GetComponent<Renderer>();
             string c = s.camp.ToLower();
-            if (c == "red") r.material.color = Color.red;
-            else if (c == "blue") r.material.color = Color.blue;
-            else r.material.color = Color.magenta;
-
-            // Simple primitive placeholder differentiation
-            if (s.soldierType.ToLower() == "warrior")
-                model.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
-            else if (s.soldierType.ToLower() == "archer")
-                model.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-            else if (s.soldierType.ToLower() == "mage")
-                model.transform.localScale = new Vector3(0.6f, 1.2f, 0.6f);
+            // if (c == "red") r.material.color = Color.red;
+            // else if (c == "blue") r.material.color = Color.blue;
+            // else r.material.color = Color.magenta;
 
             soldiersMap[s.ID] = model;
             modelToSoldierId[model] = s.ID;
@@ -76,7 +111,7 @@ public class SoldiersData : MonoBehaviour
                 if (stat.position != null)
                 {
                     float sizeY = stat.position.y;
-                    go.transform.position = new Vector3(stat.position.x, sizeY + 0.5f, stat.position.z);
+                    go.transform.position = new Vector3(stat.position.x, sizeY * 0.5f, stat.position.z);
                 }
 
                 // Handling case sensitivity mapping between Stats and stats
@@ -123,7 +158,7 @@ public class SoldiersData : MonoBehaviour
     public string GetSoldierDisplayName(int id)
     {
         string camp = soldierCamps.ContainsKey(id) ? soldierCamps[id] : "Unknown";
-        string type = soldierTypes.ContainsKey(id) ? soldierTypes[id] : "Soldier";
+        string type = soldierTypes.ContainsKey(id) ? soldierTypes[id].ToString() : "Soldier";
         return $"{camp} {type} #{id}";
     }
 
@@ -132,9 +167,9 @@ public class SoldiersData : MonoBehaviour
         return soldierCamps.ContainsKey(id) ? soldierCamps[id] : string.Empty;
     }
 
-    public string GetSoldierType(int id)
+    public int GetSoldierType(int id)
     {
-        return soldierTypes.ContainsKey(id) ? soldierTypes[id] : string.Empty;
+        return soldierTypes.ContainsKey(id) ? soldierTypes[id] : -1;
     }
 
     public List<int> GetAllSoldierIds(bool onlyAlive)
@@ -199,7 +234,7 @@ public class SoldiersData : MonoBehaviour
         info = new SoldierRuntimeInfo
         {
             id = id,
-            soldierType = soldierTypes.ContainsKey(id) ? soldierTypes[id] : string.Empty,
+            soldierType = soldierTypes.ContainsKey(id) ? soldierTypes[id] : -1,
             camp = soldierCamps.ContainsKey(id) ? soldierCamps[id] : string.Empty,
             health = soldierHP.ContainsKey(id) ? soldierHP[id] : 0,
             strength = soldierStrength.ContainsKey(id) ? soldierStrength[id] : 0,
@@ -216,7 +251,7 @@ public class SoldiersData : MonoBehaviour
 public class SoldierRuntimeInfo
 {
     public int id;
-    public string soldierType;
+    public int soldierType;
     public string camp;
     public int health;
     public int strength;

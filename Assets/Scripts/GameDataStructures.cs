@@ -20,7 +20,7 @@ public class StatsField
 public class SoldierInitDataField
 {
     public int ID;
-    public string soldierType;
+    public int soldierType;
     public string camp;
     public PositionField position;
     public StatsField stats;
