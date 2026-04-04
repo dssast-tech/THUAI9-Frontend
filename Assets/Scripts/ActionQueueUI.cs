@@ -11,7 +11,7 @@ public class ActionQueueUI : MonoBehaviour
     {
         public int soldierId = -1;
         public string camp;
-        public string soldierType;
+        public int soldierType = -1;
         public Sprite portrait;
     }
 
@@ -451,7 +451,7 @@ public class ActionQueueUI : MonoBehaviour
         Image campBar = FindChildImageByName(item.transform, "CampBar");
 
         string camp = soldiersDataRef != null ? soldiersDataRef.GetSoldierCamp(action.soldierId) : string.Empty;
-        string soldierType = soldiersDataRef != null ? soldiersDataRef.GetSoldierType(action.soldierId) : string.Empty;
+        int soldierType = soldiersDataRef != null ? soldiersDataRef.GetSoldierType(action.soldierId) : -1;
 
         Color campColor = ResolveCampColor(camp);
         Sprite portrait = ResolvePortrait(action.soldierId, camp, soldierType);
@@ -526,7 +526,7 @@ public class ActionQueueUI : MonoBehaviour
         }
     }
 
-    private Sprite ResolvePortrait(int soldierId, string camp, string soldierType)
+    private Sprite ResolvePortrait(int soldierId, string camp, int soldierType)
     {
         for (int i = 0; i < portraitMappings.Count; i++)
         {
@@ -551,7 +551,7 @@ public class ActionQueueUI : MonoBehaviour
             }
 
             bool campMatch = string.IsNullOrEmpty(mapping.camp) || string.Equals(mapping.camp, camp, StringComparison.OrdinalIgnoreCase);
-            bool typeMatch = string.IsNullOrEmpty(mapping.soldierType) || string.Equals(mapping.soldierType, soldierType, StringComparison.OrdinalIgnoreCase);
+            bool typeMatch = mapping.soldierType == -1 || mapping.soldierType == soldierType;
 
             if (campMatch && typeMatch)
             {
@@ -562,7 +562,7 @@ public class ActionQueueUI : MonoBehaviour
         return ResolvePortraitFromResources(camp, soldierType);
     }
 
-    private Sprite ResolvePortraitFromResources(string camp, string soldierType)
+    private Sprite ResolvePortraitFromResources(string camp, int soldierType)
     {
         string campKey = string.IsNullOrEmpty(camp) ? string.Empty : camp.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(campKey))
@@ -570,7 +570,7 @@ public class ActionQueueUI : MonoBehaviour
             return null;
         }
 
-        string typeKey = string.IsNullOrEmpty(soldierType) ? string.Empty : soldierType.Trim().ToLowerInvariant();
+        string typeKey = soldierType == -1 ? string.Empty : soldierType.ToString();
         string shortType = ResolvePortraitTypeSuffix(typeKey);
 
         List<string> candidates = new List<string>();

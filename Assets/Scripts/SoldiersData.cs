@@ -7,7 +7,7 @@ public class SoldiersData : MonoBehaviour
     private Dictionary<GameObject, int> modelToSoldierId = new Dictionary<GameObject, int>();
     
     // Store soldier info
-    private Dictionary<int, string> soldierTypes = new Dictionary<int, string>();
+    private Dictionary<int, int> soldierTypes = new Dictionary<int, int>();
     private Dictionary<int, string> soldierCamps = new Dictionary<int, string>();
     private Dictionary<int, int> soldierHP = new Dictionary<int, int>();
     private Dictionary<int, int> soldierStrength = new Dictionary<int, int>();
@@ -123,7 +123,7 @@ public class SoldiersData : MonoBehaviour
     public string GetSoldierDisplayName(int id)
     {
         string camp = soldierCamps.ContainsKey(id) ? soldierCamps[id] : "Unknown";
-        string type = soldierTypes.ContainsKey(id) ? soldierTypes[id] : "Soldier";
+        string type = soldierTypes.ContainsKey(id) ? soldierTypes[id].ToString() : "Soldier";
         return $"{camp} {type} #{id}";
     }
 
@@ -132,9 +132,9 @@ public class SoldiersData : MonoBehaviour
         return soldierCamps.ContainsKey(id) ? soldierCamps[id] : string.Empty;
     }
 
-    public string GetSoldierType(int id)
+    public int GetSoldierType(int id)
     {
-        return soldierTypes.ContainsKey(id) ? soldierTypes[id] : string.Empty;
+        return soldierTypes.ContainsKey(id) ? soldierTypes[id] : -1;
     }
 
     public List<int> GetAllSoldierIds(bool onlyAlive)
@@ -199,7 +199,7 @@ public class SoldiersData : MonoBehaviour
         info = new SoldierRuntimeInfo
         {
             id = id,
-            soldierType = soldierTypes.ContainsKey(id) ? soldierTypes[id] : string.Empty,
+            soldierType = soldierTypes.ContainsKey(id) ? soldierTypes[id] : -1,
             camp = soldierCamps.ContainsKey(id) ? soldierCamps[id] : string.Empty,
             health = soldierHP.ContainsKey(id) ? soldierHP[id] : 0,
             strength = soldierStrength.ContainsKey(id) ? soldierStrength[id] : 0,
@@ -216,7 +216,7 @@ public class SoldiersData : MonoBehaviour
 public class SoldierRuntimeInfo
 {
     public int id;
-    public string soldierType;
+    public int soldierType;
     public string camp;
     public int health;
     public int strength;
