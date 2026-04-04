@@ -5,6 +5,8 @@ public class MapData : MonoBehaviour
 {
     private GameObject[,] mapTiles;
     private Transform mapParent;
+    private Bounds mapBounds;
+    private bool hasMapBounds;
 
     public void GenerateMap(MapDataField mapDataField)
     {
@@ -17,6 +19,8 @@ public class MapData : MonoBehaviour
         int height = mapDataField.rows.Length;
         mapTiles = new GameObject[height, width];
         
+        hasMapBounds = false;
+
         for (int z = 0; z < height; z++)
         {
             for (int x = 0; x < mapDataField.rows[z].row.Length; x++)
@@ -37,6 +41,20 @@ public class MapData : MonoBehaviour
                 
                 cube.name = $"Tile_z{z}_x{x}";
                 mapTiles[z, x] = cube;
+
+                Renderer cubeRenderer = cube.GetComponent<Renderer>();
+                if (cubeRenderer != null)
+                {
+                    if (!hasMapBounds)
+                    {
+                        mapBounds = cubeRenderer.bounds;
+                        hasMapBounds = true;
+                    }
+                    else
+                    {
+                        mapBounds.Encapsulate(cubeRenderer.bounds);
+                    }
+                }
             }
         }
         
@@ -64,5 +82,14 @@ public class MapData : MonoBehaviour
                 Destroy(child.gameObject);
             }
         }
+
+        hasMapBounds = false;
+        mapBounds = new Bounds(Vector3.zero, Vector3.zero);
+    }
+
+    public bool TryGetMapBounds(out Bounds bounds)
+    {
+        bounds = mapBounds;
+        return hasMapBounds;
     }
 }
