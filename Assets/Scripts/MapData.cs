@@ -13,6 +13,8 @@ public class MapData : MonoBehaviour
     [SerializeField] private Material terrainMaterial;
 
     private Transform mapParent;
+    private Bounds mapBounds;
+    private bool hasMapBounds;
 
     public void GenerateMap(MapDataField mapDataField)
     {
@@ -326,5 +328,14 @@ public class MapData : MonoBehaviour
                 Destroy(child.gameObject);
             }
         }
+
+        hasMapBounds = false;
+        mapBounds = new Bounds(Vector3.zero, Vector3.zero);
+    }
+
+    public bool TryGetMapBounds(out Bounds bounds)
+    {
+        bounds = mapBounds;
+        return hasMapBounds;
     }
 }

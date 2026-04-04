@@ -12,6 +12,7 @@ public class GameRounds : MonoBehaviour
     public ReplayActionLog replayActionLog;
     public ActionQueueUI actionQueueUI;
     public SoldierHoverTooltip soldierHoverTooltip;
+    public MinimapController minimapController;
 
     private RootData gameData;
     private int currentRoundIndex = 0;
@@ -68,6 +69,7 @@ public class GameRounds : MonoBehaviour
         if (soldiersDataScript == null) soldiersDataScript = gameObject.GetComponent<SoldiersData>() ?? gameObject.AddComponent<SoldiersData>();
         if (actionsScript == null) actionsScript = gameObject.GetComponent<Actions>() ?? gameObject.AddComponent<Actions>();
         if (soldierHoverTooltip == null) soldierHoverTooltip = gameObject.GetComponent<SoldierHoverTooltip>() ?? gameObject.AddComponent<SoldierHoverTooltip>();
+        if (minimapController == null) minimapController = gameObject.GetComponent<MinimapController>() ?? gameObject.AddComponent<MinimapController>();
         if (actionQueueUI == null) actionQueueUI = FindObjectOfType<ActionQueueUI>();
 
         mapDataScript.ClearMap();
@@ -75,6 +77,11 @@ public class GameRounds : MonoBehaviour
 
         playerDataScript.Initialize(gameData.playerData);
         soldiersDataScript.InitializeSoldiers(gameData.soldiersData);
+
+        if (minimapController != null)
+        {
+            minimapController.Setup(mapDataScript, soldiersDataScript);
+        }
 
         actionsScript.Setup(soldiersDataScript);
         actionsScript.SetActionQueueUI(actionQueueUI);
@@ -150,6 +157,16 @@ public class GameRounds : MonoBehaviour
         Debug.Log("已停止自动播放。", this);
     }
 
+    public void SetMinimapTargetSoldier(int soldierId)
+    {
+        if (minimapController == null)
+        {
+            return;
+        }
+
+        minimapController.SetTargetSoldierId(soldierId);
+    }
+
     private bool HasRoundsToPlay(bool logWhenBlocked)
     {
         if (gameData == null || gameData.gameRounds == null || gameData.gameRounds.Length == 0)
@@ -214,6 +231,13 @@ public class GameRounds : MonoBehaviour
             currentActionSequence = null;
 
             soldiersDataScript.UpdateSoldierStats(round.stats);
+
+            if (minimapController != null)
+            {
+                minimapController.RefreshTarget();
+            }
+
+            // Update Player Data
             playerDataScript.UpdateRoundInfo(round.score, round.end);
 
             currentRoundIndex++;
