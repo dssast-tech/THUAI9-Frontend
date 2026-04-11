@@ -5851,7 +5851,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 1
-  m_AdditionalShaderChannelsFlag: 25
+  m_AdditionalShaderChannelsFlag: 1
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0
@@ -51651,6 +51651,7 @@ MonoBehaviour:
   replayActionLog: {fileID: 194420289}
   actionQueueUI: {fileID: 0}
   soldierHoverTooltip: {fileID: 0}
+  minimapController: {fileID: 0}
 --- !u!4 &1275030895
 Transform:
   m_ObjectHideFlags: 0

@@ -41,16 +41,10 @@ public class MapData : MonoBehaviour
         meshFilter.sharedMesh = terrainMesh;
 
         MeshRenderer meshRenderer = terrainObject.AddComponent<MeshRenderer>();
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null)
-        {
-            shader = Shader.Find("Standard");
-        }
-
-        meshRenderer.sharedMaterial = terrainMaterial != null ? terrainMaterial : new Material(shader)
-        {
-            color = new Color(0.7f, 0.75f, 0.65f)
-        };
+        meshRenderer.sharedMaterial = terrainMaterial;
+        Vector2 heightRange = CalculateHeightRange(mapDataField);
+        meshRenderer.material.SetVector("_Height_Range", heightRange);
+        UpdateMapBounds(meshRenderer);
 
         MeshCollider meshCollider = terrainObject.AddComponent<MeshCollider>();
         meshCollider.sharedMesh = terrainMesh;
@@ -211,6 +205,47 @@ public class MapData : MonoBehaviour
         return EvaluateFlatTopKernelInterpolation(mapDataField, x, z);
     }
 
+    private Vector2 CalculateHeightRange(MapDataField mapDataField)
+    {
+        if (mapDataField == null || mapDataField.rows == null || mapDataField.rows.Length == 0)
+        {
+            return Vector2.zero;
+        }
+
+        float minHeight = float.PositiveInfinity;
+        float maxHeight = float.NegativeInfinity;
+
+        for (int z = 0; z < mapDataField.rows.Length; z++)
+        {
+            int[] row = mapDataField.rows[z].row;
+            if (row == null)
+            {
+                continue;
+            }
+
+            for (int x = 0; x < row.Length; x++)
+            {
+                float h = row[x] * heightScale;
+                if (h < minHeight)
+                {
+                    minHeight = h;
+                }
+
+                if (h > maxHeight)
+                {
+                    maxHeight = h;
+                }
+            }
+        }
+
+        if (float.IsPositiveInfinity(minHeight) || float.IsNegativeInfinity(maxHeight))
+        {
+            return Vector2.zero;
+        }
+
+        return new Vector2(minHeight, maxHeight) * 0.5f;
+    }
+
     private float EvaluateFlatTopKernelInterpolation(MapDataField mapDataField, float x, float z)
     {
         int x0 = Mathf.FloorToInt(x);
@@ -317,6 +352,23 @@ public class MapData : MonoBehaviour
         }
 
         return row[x] * heightScale;
+    }
+
+    private void UpdateMapBounds(Renderer renderer)
+    {
+        if (renderer == null)
+        {
+            return;
+        }
+
+        if (!hasMapBounds)
+        {
+            mapBounds = renderer.bounds;
+            hasMapBounds = true;
+            return;
+        }
+
+        mapBounds.Encapsulate(renderer.bounds);
     }
     
     public void ClearMap()
