@@ -38,6 +38,7 @@ public class Actions : MonoBehaviour
             if (act == null || string.IsNullOrEmpty(act.actionType)) continue;
 
             string type = act.actionType.ToLower();
+            int actorId = act.soldierId;
 
             if (type == "movement")
             {
@@ -65,10 +66,13 @@ public class Actions : MonoBehaviour
                 // roundSequence.AppendInterval(0.8f);
             }
 
-            if (actionQueueUI != null)
+            roundSequence.AppendCallback(() =>
             {
-                actionQueueUI.MoveSoldierToQueueEnd(act.soldierId);
-            }
+                if (actionQueueUI != null)
+                {
+                    actionQueueUI.MoveSoldierToQueueEnd(actorId);
+                }
+            });
         }
 
         roundSequence.AppendInterval(0.5f); // buffer before round ends visually

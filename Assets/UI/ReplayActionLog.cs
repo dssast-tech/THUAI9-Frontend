@@ -14,7 +14,6 @@ public class ReplayActionLog : MonoBehaviour
 
     private readonly Queue<string> roundLogs = new Queue<string>();
     private ScrollRect scrollRect;
-    private RectTransform logViewportRect;
 
     private void Awake()
     {
@@ -23,6 +22,8 @@ public class ReplayActionLog : MonoBehaviour
             Debug.LogError("ReplayActionLog 未绑定 logText，请在 Inspector 手动指定 TMP 组件。", this);
             return;
         }
+
+        scrollRect = logText.GetComponentInParent<ScrollRect>(true);
 
         if (string.IsNullOrEmpty(logText.text))
         {
@@ -100,8 +101,21 @@ public class ReplayActionLog : MonoBehaviour
 
         if (scrollRect != null)
         {
-            Canvas.ForceUpdateCanvases();
-            scrollRect.verticalNormalizedPosition = 0f;
+            ScrollToBottom();
         }
+    }
+
+    private void ScrollToBottom()
+    {
+        scrollRect.StopMovement();
+        Canvas.ForceUpdateCanvases();
+
+        if (scrollRect.content != null)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(scrollRect.content);
+        }
+
+        Canvas.ForceUpdateCanvases();
+        scrollRect.verticalNormalizedPosition = 0f;
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 using TMPro;
 
 public class ActionQueueUI : MonoBehaviour
@@ -31,7 +32,7 @@ public class ActionQueueUI : MonoBehaviour
     [SerializeField] private Color blueCampTint = new Color(0.55f, 0.75f, 1f, 1f);
     [SerializeField] private Color unknownCampTint = new Color(0.9f, 0.9f, 0.9f, 1f);
     [SerializeField] private Color currentOutlineColor = new Color(1f, 0.95f, 0.25f, 1f);
-    [SerializeField] private float currentScale = 1.08f;
+    [SerializeField] private float currentScale = 2.5f;
     [SerializeField] private int maxVisibleCount = 12;
     [SerializeField] private bool disableRaycastOnQueueItems = true;
     [SerializeField] private bool verboseLog = true;
@@ -55,6 +56,7 @@ public class ActionQueueUI : MonoBehaviour
     private readonly List<List<int>> precomputedRoundQueues = new List<List<int>>();
     private SoldiersData soldiersDataRef;
     private Vector2 templateSize = new Vector2(64f, 64f);
+    private int currentRoundDistinctActorCount = 0;
 
     public void Setup(SoldiersData soldiersData)
     {
@@ -107,43 +109,23 @@ public class ActionQueueUI : MonoBehaviour
     {
         precomputedRoundQueues.Clear();
 
-        if (rounds == null || rounds.Length == 0 || soldiersDataRef == null)
+        if (rounds == null || rounds.Length == 0)
         {
             return;
         }
 
-        List<int> baseQueue = soldiersDataRef.GetAllSoldierIds(true);
-        if (baseQueue.Count == 0)
-        {
-            baseQueue = soldiersDataRef.GetAllSoldierIds(false);
-        }
-
-        if (baseQueue.Count == 0)
-        {
-            return;
-        }
-
-        List<int> currentQueue = new List<int>(baseQueue);
-
+        List<int> previousQueue = null;
         for (int i = 0; i < rounds.Length; i++)
         {
             GameRoundField round = rounds[i];
             ActionField[] actions = round != null ? round.actions : null;
-
-            bool hasValidAction = TryGetFirstValidActor(actions, out int firstActorId);
-            List<int> roundQueue = new List<int>(currentQueue);
-
-            // 若该回合有行动，则将首个行动士兵放到队首。
-            // 若该回合无行动，则保持上一回合队首不变。
-            if (hasValidAction)
-            {
-                EnsureIdInQueue(roundQueue, firstActorId);
-                RotateQueueToFront(roundQueue, firstActorId);
-            }
-
+            List<int> roundQueue = BuildRoundQueue(rounds, i, actions, previousQueue);
             precomputedRoundQueues.Add(roundQueue);
 
-            currentQueue = new List<int>(roundQueue);
+            if (roundQueue != null && roundQueue.Count > 0 && !(roundQueue.Count == 1 && roundQueue[0] == -1))
+            {
+                previousQueue = new List<int>(roundQueue);
+            }
         }
 
         if (verboseLog)
@@ -155,6 +137,7 @@ public class ActionQueueUI : MonoBehaviour
     public void ShowRoundQueue(int roundIndex, ActionField[] actions)
     {
         ClearQueue();
+        currentRoundDistinctActorCount = BuildUniqueOrderFromActions(actions).Count;
 
         if (queueContent == null)
         {
@@ -205,6 +188,7 @@ public class ActionQueueUI : MonoBehaviour
             };
 
             ConfigureQueueItem(item, queueEntry);
+
             activeItems.Add(item);
             activeSoldierIds.Add(soldierId);
             spawned++;
@@ -387,6 +371,12 @@ public class ActionQueueUI : MonoBehaviour
             return;
         }
 
+        if (currentRoundDistinctActorCount <= 1)
+        {
+            RefreshCurrentVisual();
+            return;
+        }
+
         int index = activeSoldierIds.IndexOf(soldierId);
         if (index < 0)
         {
@@ -422,6 +412,11 @@ public class ActionQueueUI : MonoBehaviour
 
     private string ResolveFirstActionTypeBySoldier(ActionField[] actions, int soldierId)
     {
+        if (soldierId < 0)
+        {
+            return "empty";
+        }
+
         if (actions == null)
         {
             return "init";
@@ -512,7 +507,31 @@ public class ActionQueueUI : MonoBehaviour
             }
 
             bool isCurrent = i == 0;
-            item.transform.localScale = isCurrent ? Vector3.one * currentScale : Vector3.one;
+
+            // Keep item root scale constant; only scale the portrait image when it's the current actor.
+            item.transform.localScale = Vector3.one;
+
+            Image rootImg = item.GetComponent<Image>();
+            if (rootImg != null)
+            {
+                // Kill any existing tweens on this rect to avoid stacking
+                rootImg.rectTransform.DOKill();
+                rootImg.DOKill();
+
+                // Scale portrait with a short animation for emphasis
+                if (isCurrent)
+                {
+                    rootImg.rectTransform.DOScale(Vector3.one * currentScale, 0.18f).SetEase(Ease.OutBack);
+                    rootImg.DOColor(Color.white, 0.12f);
+                }
+                else
+                {
+                    rootImg.rectTransform.DOScale(Vector3.one, 0.12f).SetEase(Ease.OutSine);
+                    // Slightly dim non-current portraits to increase contrast
+                    Color dim = new Color(1f, 1f, 1f, 0.6f);
+                    rootImg.DOColor(dim, 0.12f);
+                }
+            }
 
             Outline outline = item.GetComponent<Outline>();
             if (outline == null)
@@ -522,6 +541,7 @@ public class ActionQueueUI : MonoBehaviour
             }
 
             outline.effectColor = currentOutlineColor;
+            outline.effectDistance = isCurrent ? new Vector2(3f, -3f) : new Vector2(2f, -2f);
             outline.enabled = isCurrent;
         }
     }
@@ -693,6 +713,116 @@ public class ActionQueueUI : MonoBehaviour
         return true;
     }
 
+    private List<int> BuildRoundQueue(GameRoundField[] rounds, int roundIndex, ActionField[] actions, List<int> previousQueue)
+    {
+        List<int> currentQueue = BuildUniqueOrderFromActions(actions);
+        if (currentQueue.Count >= 2)
+        {
+            return currentQueue;
+        }
+
+        List<int> forwardQueue = FindForwardBorrowQueue(rounds, roundIndex + 1, 2);
+        if (forwardQueue != null && forwardQueue.Count >= 2)
+        {
+            if (currentQueue.Count == 0)
+            {
+                return forwardQueue;
+            }
+
+            List<int> mergedQueue = new List<int>(currentQueue);
+            HashSet<int> seenSoldierIds = new HashSet<int>(mergedQueue);
+            for (int i = 0; i < forwardQueue.Count; i++)
+            {
+                int soldierId = forwardQueue[i];
+                if (seenSoldierIds.Add(soldierId))
+                {
+                    mergedQueue.Add(soldierId);
+                }
+            }
+
+            return mergedQueue;
+        }
+
+        if (currentQueue.Count > 0)
+        {
+            return currentQueue;
+        }
+
+        if (previousQueue != null && previousQueue.Count >= 2)
+        {
+            return new List<int>(previousQueue);
+        }
+
+        return new List<int>();
+    }
+
+    private List<int> BuildUniqueOrderFromActions(ActionField[] actions)
+    {
+        List<int> queue = new List<int>();
+        HashSet<int> seenSoldierIds = new HashSet<int>();
+
+        if (actions == null)
+        {
+            return queue;
+        }
+
+        for (int i = 0; i < actions.Length; i++)
+        {
+            ActionField action = actions[i];
+            if (!IsValidAction(action))
+            {
+                continue;
+            }
+
+            int soldierId = action.soldierId;
+            if (soldierId < 0 || !seenSoldierIds.Add(soldierId))
+            {
+                continue;
+            }
+
+            queue.Add(soldierId);
+        }
+
+        return queue;
+    }
+
+    private List<int> FindForwardBorrowQueue(GameRoundField[] rounds, int startIndex, int minDistinctCount)
+    {
+        if (rounds == null)
+        {
+            return null;
+        }
+
+        List<int> queue = new List<int>();
+        HashSet<int> seenSoldierIds = new HashSet<int>();
+
+        for (int i = startIndex; i < rounds.Length; i++)
+        {
+            ActionField[] actions = rounds[i] != null ? rounds[i].actions : null;
+            List<int> roundQueue = BuildUniqueOrderFromActions(actions);
+            for (int j = 0; j < roundQueue.Count; j++)
+            {
+                int soldierId = roundQueue[j];
+                if (seenSoldierIds.Add(soldierId))
+                {
+                    queue.Add(soldierId);
+                }
+            }
+
+            if (queue.Count >= minDistinctCount)
+            {
+                return queue;
+            }
+        }
+
+        return queue.Count > 0 ? queue : null;
+    }
+
+    private bool IsValidAction(ActionField action)
+    {
+        return action != null && !string.IsNullOrEmpty(action.actionType);
+    }
+
     private bool TryGetFirstValidActor(ActionField[] actions, out int soldierId)
     {
         soldierId = -1;
@@ -704,7 +834,7 @@ public class ActionQueueUI : MonoBehaviour
         for (int i = 0; i < actions.Length; i++)
         {
             ActionField action = actions[i];
-            if (action == null || string.IsNullOrEmpty(action.actionType))
+            if (!IsValidAction(action))
             {
                 continue;
             }
@@ -714,47 +844,6 @@ public class ActionQueueUI : MonoBehaviour
         }
 
         return false;
-    }
-
-    private void EnsureIdInQueue(List<int> queue, int soldierId)
-    {
-        if (queue == null)
-        {
-            return;
-        }
-
-        if (!queue.Contains(soldierId))
-        {
-            queue.Add(soldierId);
-        }
-    }
-
-    private void RotateQueueToFront(List<int> queue, int soldierId)
-    {
-        if (queue == null || queue.Count == 0)
-        {
-            return;
-        }
-
-        int index = queue.IndexOf(soldierId);
-        if (index <= 0)
-        {
-            return;
-        }
-
-        List<int> rotated = new List<int>(queue.Count);
-        for (int i = index; i < queue.Count; i++)
-        {
-            rotated.Add(queue[i]);
-        }
-
-        for (int i = 0; i < index; i++)
-        {
-            rotated.Add(queue[i]);
-        }
-
-        queue.Clear();
-        queue.AddRange(rotated);
     }
 
     private Image FindChildImageByName(Transform root, string name)
