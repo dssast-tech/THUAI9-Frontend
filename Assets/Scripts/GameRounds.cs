@@ -93,7 +93,6 @@ public class GameRounds : MonoBehaviour
         if (actionQueueUI != null)
         {
             actionQueueUI.Setup(soldiersDataScript);
-            actionQueueUI.PrecomputeRoundQueues(gameData.gameRounds);
         }
         if (replayActionLog != null)
         {

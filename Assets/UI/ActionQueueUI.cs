@@ -32,7 +32,7 @@ public class ActionQueueUI : MonoBehaviour
     [SerializeField] private Color blueCampTint = new Color(0.55f, 0.75f, 1f, 1f);
     [SerializeField] private Color unknownCampTint = new Color(0.9f, 0.9f, 0.9f, 1f);
     [SerializeField] private Color currentOutlineColor = new Color(1f, 0.95f, 0.25f, 1f);
-    [SerializeField] private float currentScale = 2.5f;
+    [SerializeField] private float currentScale = 1.05f;
     [SerializeField] private int maxVisibleCount = 12;
     [SerializeField] private bool disableRaycastOnQueueItems = true;
     [SerializeField] private bool verboseLog = true;
@@ -52,11 +52,17 @@ public class ActionQueueUI : MonoBehaviour
 
     private readonly List<GameObject> activeItems = new List<GameObject>();
     private readonly List<int> activeSoldierIds = new List<int>();
+    private List<int> sortedSoldierIds = new List<int>();
     private readonly Dictionary<string, Sprite> resourcePortraitCache = new Dictionary<string, Sprite>();
-    private readonly List<List<int>> precomputedRoundQueues = new List<List<int>>();
+    private readonly HashSet<int> currentActedSoldierIds = new HashSet<int>();
+    private bool useActionHighlighting = false;
     private SoldiersData soldiersDataRef;
     private Vector2 templateSize = new Vector2(64f, 64f);
-    private int currentRoundDistinctActorCount = 0;
+
+    private float ResolveHighlightScale()
+    {
+        return Mathf.Clamp(currentScale, 1f, 1.05f);
+    }
 
     public void Setup(SoldiersData soldiersData)
     {
@@ -102,42 +108,21 @@ public class ActionQueueUI : MonoBehaviour
 
         EnsureQueueLayoutSettings();
 
+        sortedSoldierIds = soldiersDataRef.GetAllSoldierIds(true);
+        if (sortedSoldierIds.Count == 0)
+        {
+            sortedSoldierIds = soldiersDataRef.GetAllSoldierIds(false);
+        }
+        sortedSoldierIds.Sort();
+
         ShowInitialQueue();
-    }
-
-    public void PrecomputeRoundQueues(GameRoundField[] rounds)
-    {
-        precomputedRoundQueues.Clear();
-
-        if (rounds == null || rounds.Length == 0)
-        {
-            return;
-        }
-
-        List<int> previousQueue = null;
-        for (int i = 0; i < rounds.Length; i++)
-        {
-            GameRoundField round = rounds[i];
-            ActionField[] actions = round != null ? round.actions : null;
-            List<int> roundQueue = BuildRoundQueue(rounds, i, actions, previousQueue);
-            precomputedRoundQueues.Add(roundQueue);
-
-            if (roundQueue != null && roundQueue.Count > 0 && !(roundQueue.Count == 1 && roundQueue[0] == -1))
-            {
-                previousQueue = new List<int>(roundQueue);
-            }
-        }
-
-        if (verboseLog)
-        {
-            Debug.Log($"[ActionQueueUI] 已预计算回合队列，rounds={precomputedRoundQueues.Count}", this);
-        }
     }
 
     public void ShowRoundQueue(int roundIndex, ActionField[] actions)
     {
         ClearQueue();
-        currentRoundDistinctActorCount = BuildUniqueOrderFromActions(actions).Count;
+        useActionHighlighting = true;
+        currentActedSoldierIds.Clear();
 
         if (queueContent == null)
         {
@@ -150,29 +135,32 @@ public class ActionQueueUI : MonoBehaviour
             return;
         }
 
-        if (!TryGetPrecomputedQueue(roundIndex, out List<int> queueSoldierIds))
+        if (sortedSoldierIds == null || sortedSoldierIds.Count == 0)
         {
-            if (verboseLog)
-            {
-                Debug.LogWarning($"[ActionQueueUI] 未找到预计算队列，roundIndex={roundIndex}", this);
-            }
             return;
         }
 
-        if (queueSoldierIds == null || queueSoldierIds.Count == 0)
+        HashSet<int> actedSoldierIds = new HashSet<int>();
+        if (actions != null)
         {
-            return;
+            for (int i = 0; i < actions.Length; i++)
+            {
+                ActionField action = actions[i];
+                if (!IsValidAction(action) || action.soldierId < 0)
+                {
+                    continue;
+                }
+
+                actedSoldierIds.Add(action.soldierId);
+                currentActedSoldierIds.Add(action.soldierId);
+            }
         }
 
         int spawned = 0;
-        for (int i = 0; i < queueSoldierIds.Count; i++)
+        int visibleCount = Mathf.Min(maxVisibleCount, sortedSoldierIds.Count);
+        for (int i = 0; i < visibleCount; i++)
         {
-            int soldierId = queueSoldierIds[i];
-
-            if (spawned >= maxVisibleCount)
-            {
-                break;
-            }
+            int soldierId = sortedSoldierIds[i];
 
             GameObject item = CreateQueueItem(spawned, "ActionQueueItem");
             if (item == null)
@@ -180,7 +168,7 @@ public class ActionQueueUI : MonoBehaviour
                 continue;
             }
 
-            string actionType = ResolveFirstActionTypeBySoldier(actions, soldierId);
+            string actionType = actedSoldierIds.Contains(soldierId) ? ResolveFirstActionTypeBySoldier(actions, soldierId) : string.Empty;
             ActionField queueEntry = new ActionField
             {
                 soldierId = soldierId,
@@ -200,7 +188,7 @@ public class ActionQueueUI : MonoBehaviour
         if (verboseLog)
         {
             int actionCount = actions != null ? actions.Length : 0;
-            Debug.Log($"[ActionQueueUI] roundIndex={roundIndex}, actions={actionCount}, queueSoldiers={queueSoldierIds.Count}, spawned={spawned}, visibleLimit={maxVisibleCount}", this);
+            Debug.Log($"[ActionQueueUI] roundIndex={roundIndex}, actions={actionCount}, spawned={spawned}, visibleLimit={maxVisibleCount}", this);
         }
 
         RefreshCurrentVisual();
@@ -213,37 +201,32 @@ public class ActionQueueUI : MonoBehaviour
             return;
         }
 
-        List<int> soldierIds = soldiersDataRef.GetAllSoldierIds(true);
-        if (soldierIds.Count == 0)
-        {
-            soldierIds = soldiersDataRef.GetAllSoldierIds(false);
-        }
+        useActionHighlighting = false;
+        currentActedSoldierIds.Clear();
 
-        if (soldierIds.Count == 0)
+        if (sortedSoldierIds == null || sortedSoldierIds.Count == 0)
         {
             return;
         }
 
         ClearQueue();
 
-        int limit = Mathf.Min(Mathf.Max(1, initialQueueCount), Mathf.Min(maxVisibleCount, soldierIds.Count));
+        int limit = Mathf.Min(Mathf.Max(1, initialQueueCount), Mathf.Min(maxVisibleCount, sortedSoldierIds.Count));
         for (int i = 0; i < limit; i++)
         {
             GameObject item = CreateQueueItem(i, "InitQueueItem");
             if (item == null)
-            {
                 continue;
-            }
 
             ActionField initAction = new ActionField
             {
-                soldierId = soldierIds[i],
+                soldierId = sortedSoldierIds[i],
                 actionType = "init"
             };
 
             ConfigureQueueItem(item, initAction);
             activeItems.Add(item);
-            activeSoldierIds.Add(soldierIds[i]);
+            activeSoldierIds.Add(sortedSoldierIds[i]);
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(queueContent);
@@ -344,60 +327,26 @@ public class ActionQueueUI : MonoBehaviour
 
     public void AdvanceQueue()
     {
-        if (activeItems.Count == 0)
-        {
-            return;
-        }
-
-        GameObject first = activeItems[0];
-        activeItems.RemoveAt(0);
-        activeItems.Add(first);
-        first.transform.SetAsLastSibling();
-
-        if (activeSoldierIds.Count > 0)
-        {
-            int firstId = activeSoldierIds[0];
-            activeSoldierIds.RemoveAt(0);
-            activeSoldierIds.Add(firstId);
-        }
-
         RefreshCurrentVisual();
     }
 
     public void MoveSoldierToQueueEnd(int soldierId)
     {
-        if (activeItems.Count == 0)
+        if (soldierId < 0)
         {
             return;
         }
 
-        if (currentRoundDistinctActorCount <= 1)
-        {
-            RefreshCurrentVisual();
-            return;
-        }
-
-        int index = activeSoldierIds.IndexOf(soldierId);
-        if (index < 0)
-        {
-            AdvanceQueue();
-            return;
-        }
-
-        GameObject actedItem = activeItems[index];
-        activeItems.RemoveAt(index);
-        activeItems.Add(actedItem);
-        actedItem.transform.SetAsLastSibling();
-
-        int actedId = activeSoldierIds[index];
-        activeSoldierIds.RemoveAt(index);
-        activeSoldierIds.Add(actedId);
-
+        currentActedSoldierIds.Add(soldierId);
+        useActionHighlighting = true;
         RefreshCurrentVisual();
     }
 
     public void ClearQueue()
     {
+        useActionHighlighting = false;
+        currentActedSoldierIds.Clear();
+
         for (int i = 0; i < activeItems.Count; i++)
         {
             if (activeItems[i] != null)
@@ -506,43 +455,79 @@ public class ActionQueueUI : MonoBehaviour
                 continue;
             }
 
-            bool isCurrent = i == 0;
-
-            // Keep item root scale constant; only scale the portrait image when it's the current actor.
-            item.transform.localScale = Vector3.one;
-
-            Image rootImg = item.GetComponent<Image>();
-            if (rootImg != null)
+            if (useActionHighlighting)
             {
-                // Kill any existing tweens on this rect to avoid stacking
-                rootImg.rectTransform.DOKill();
-                rootImg.DOKill();
+                bool acted = i < activeSoldierIds.Count && currentActedSoldierIds.Contains(activeSoldierIds[i]);
 
-                // Scale portrait with a short animation for emphasis
-                if (isCurrent)
+                item.transform.localScale = Vector3.one;
+
+                Image rootImg = item.GetComponent<Image>();
+                if (rootImg != null)
                 {
-                    rootImg.rectTransform.DOScale(Vector3.one * currentScale, 0.18f).SetEase(Ease.OutBack);
-                    rootImg.DOColor(Color.white, 0.12f);
+                    rootImg.rectTransform.DOKill();
+                    rootImg.DOKill();
+
+                    if (acted)
+                    {
+                        float highlightScale = ResolveHighlightScale();
+                        rootImg.rectTransform.DOScale(Vector3.one * highlightScale, 0.18f).SetEase(Ease.OutBack);
+                        rootImg.DOColor(Color.white, 0.12f);
+                    }
+                    else
+                    {
+                        rootImg.rectTransform.DOScale(Vector3.one, 0.12f).SetEase(Ease.OutSine);
+                        rootImg.DOColor(Color.white, 0.12f);
+                    }
                 }
-                else
+
+                Outline outline = item.GetComponent<Outline>();
+                if (outline == null)
                 {
-                    rootImg.rectTransform.DOScale(Vector3.one, 0.12f).SetEase(Ease.OutSine);
-                    // Slightly dim non-current portraits to increase contrast
-                    Color dim = new Color(1f, 1f, 1f, 0.6f);
-                    rootImg.DOColor(dim, 0.12f);
+                    outline = item.AddComponent<Outline>();
+                    outline.effectDistance = new Vector2(2f, -2f);
                 }
+
+                outline.effectColor = currentOutlineColor;
+                outline.effectDistance = acted ? new Vector2(3f, -3f) : new Vector2(2f, -2f);
+                outline.enabled = acted;
             }
-
-            Outline outline = item.GetComponent<Outline>();
-            if (outline == null)
+            else
             {
-                outline = item.AddComponent<Outline>();
-                outline.effectDistance = new Vector2(2f, -2f);
-            }
+                bool isCurrent = i == 0;
 
-            outline.effectColor = currentOutlineColor;
-            outline.effectDistance = isCurrent ? new Vector2(3f, -3f) : new Vector2(2f, -2f);
-            outline.enabled = isCurrent;
+                item.transform.localScale = Vector3.one;
+
+                Image rootImg = item.GetComponent<Image>();
+                if (rootImg != null)
+                {
+                    rootImg.rectTransform.DOKill();
+                    rootImg.DOKill();
+
+                    if (isCurrent)
+                    {
+                        float highlightScale = ResolveHighlightScale();
+                        rootImg.rectTransform.DOScale(Vector3.one * highlightScale, 0.18f).SetEase(Ease.OutBack);
+                        rootImg.DOColor(Color.white, 0.12f);
+                    }
+                    else
+                    {
+                        rootImg.rectTransform.DOScale(Vector3.one, 0.12f).SetEase(Ease.OutSine);
+                        Color dim = new Color(1f, 1f, 1f, 0.6f);
+                        rootImg.DOColor(dim, 0.12f);
+                    }
+                }
+
+                Outline outline = item.GetComponent<Outline>();
+                if (outline == null)
+                {
+                    outline = item.AddComponent<Outline>();
+                    outline.effectDistance = new Vector2(2f, -2f);
+                }
+
+                outline.effectColor = currentOutlineColor;
+                outline.effectDistance = isCurrent ? new Vector2(3f, -3f) : new Vector2(2f, -2f);
+                outline.enabled = isCurrent;
+            }
         }
     }
 
@@ -692,130 +677,6 @@ public class ActionQueueUI : MonoBehaviour
         }
 
         return unknownCampTint;
-    }
-
-    private bool TryGetPrecomputedQueue(int roundIndex, out List<int> queueSoldierIds)
-    {
-        queueSoldierIds = null;
-
-        if (roundIndex < 0 || roundIndex >= precomputedRoundQueues.Count)
-        {
-            return false;
-        }
-
-        List<int> cached = precomputedRoundQueues[roundIndex];
-        if (cached == null || cached.Count == 0)
-        {
-            return false;
-        }
-
-        queueSoldierIds = new List<int>(cached);
-        return true;
-    }
-
-    private List<int> BuildRoundQueue(GameRoundField[] rounds, int roundIndex, ActionField[] actions, List<int> previousQueue)
-    {
-        List<int> currentQueue = BuildUniqueOrderFromActions(actions);
-        if (currentQueue.Count >= 2)
-        {
-            return currentQueue;
-        }
-
-        List<int> forwardQueue = FindForwardBorrowQueue(rounds, roundIndex + 1, 2);
-        if (forwardQueue != null && forwardQueue.Count >= 2)
-        {
-            if (currentQueue.Count == 0)
-            {
-                return forwardQueue;
-            }
-
-            List<int> mergedQueue = new List<int>(currentQueue);
-            HashSet<int> seenSoldierIds = new HashSet<int>(mergedQueue);
-            for (int i = 0; i < forwardQueue.Count; i++)
-            {
-                int soldierId = forwardQueue[i];
-                if (seenSoldierIds.Add(soldierId))
-                {
-                    mergedQueue.Add(soldierId);
-                }
-            }
-
-            return mergedQueue;
-        }
-
-        if (currentQueue.Count > 0)
-        {
-            return currentQueue;
-        }
-
-        if (previousQueue != null && previousQueue.Count >= 2)
-        {
-            return new List<int>(previousQueue);
-        }
-
-        return new List<int>();
-    }
-
-    private List<int> BuildUniqueOrderFromActions(ActionField[] actions)
-    {
-        List<int> queue = new List<int>();
-        HashSet<int> seenSoldierIds = new HashSet<int>();
-
-        if (actions == null)
-        {
-            return queue;
-        }
-
-        for (int i = 0; i < actions.Length; i++)
-        {
-            ActionField action = actions[i];
-            if (!IsValidAction(action))
-            {
-                continue;
-            }
-
-            int soldierId = action.soldierId;
-            if (soldierId < 0 || !seenSoldierIds.Add(soldierId))
-            {
-                continue;
-            }
-
-            queue.Add(soldierId);
-        }
-
-        return queue;
-    }
-
-    private List<int> FindForwardBorrowQueue(GameRoundField[] rounds, int startIndex, int minDistinctCount)
-    {
-        if (rounds == null)
-        {
-            return null;
-        }
-
-        List<int> queue = new List<int>();
-        HashSet<int> seenSoldierIds = new HashSet<int>();
-
-        for (int i = startIndex; i < rounds.Length; i++)
-        {
-            ActionField[] actions = rounds[i] != null ? rounds[i].actions : null;
-            List<int> roundQueue = BuildUniqueOrderFromActions(actions);
-            for (int j = 0; j < roundQueue.Count; j++)
-            {
-                int soldierId = roundQueue[j];
-                if (seenSoldierIds.Add(soldierId))
-                {
-                    queue.Add(soldierId);
-                }
-            }
-
-            if (queue.Count >= minDistinctCount)
-            {
-                return queue;
-            }
-        }
-
-        return queue.Count > 0 ? queue : null;
     }
 
     private bool IsValidAction(ActionField action)
